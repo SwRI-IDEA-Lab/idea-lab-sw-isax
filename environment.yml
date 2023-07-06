@@ -1,0 +1,44 @@
+name: idea-isax-sw
+channels:
+- conda-forge
+- defaults
+dependencies:
+# Standard Libraries
+- numpy             # Numerical Linear Algebra
+- scipy             # Scientific Computing
+- xarray            # Data structures
+- pandas            # Data structure
+- scikit-learn      # Machine Learning
+- scikit-image      # Image Processing
+- statsmodels       # Statistical Learning
+# physics libraries
+- astropy
+- sunpy
+- conda-forge::lightkurve
+# Storage
+- h5py
+# Plotting Libraries
+- matplotlib          # standard plotting library
+- seaborn             # Stats viz library
+- plotly::plotly
+# Scale
+- dask              # Out-of-Core processing
+- dask-ml           # Out-of-Core machine learning
+# GUI
+- ipython
+- conda-forge::nodejs            # for extensions in jupyterlab
+- conda-forge::tqdm              # 
+- nb_conda_kernels
+# iSAX
+- tslearn
+- hdbscan
+- pip
+- pip:
+  - wandb
+  # Jupyter
+  - ipykernel
+  - ipywidgets
+  # isax
+  - anytree
+  - pyyaml
+
