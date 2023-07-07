@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 
-import utils.time_chunking as time_chunking
+import fdl21.utils.time_chunking as time_chunking
 
 
 def convert_WIND_EPOCH(cdf):

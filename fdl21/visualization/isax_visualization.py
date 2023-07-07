@@ -25,8 +25,8 @@ LOG.setLevel(logging.INFO)
 import wandb
 
 # # Native packages
-import data.helper_funcs as hf
-import model.isax_model as isax_model
+import fdl21.data.helper_funcs as hf
+import fdl21.isax_model as isax_model
 
 class iSaxVisualizer():
     
