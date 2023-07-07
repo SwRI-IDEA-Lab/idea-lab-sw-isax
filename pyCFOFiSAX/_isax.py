@@ -1,7 +1,7 @@
 # Authors: Lucas Foulon <lucas.foulon@gmail.com>
 # License: BSD 3 clause
 
-from numpy import int as np_int
+from numpy import int_ as np_int
 from numpy import array as np_array
 from numpy import zeros as np_zeros
 
