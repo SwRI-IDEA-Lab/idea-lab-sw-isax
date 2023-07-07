@@ -1,7 +1,7 @@
 import numpy as np
 from datetime import timedelta
 import logging
-from scipy.linalg.misc import _datacopied
+from scipy.linalg._misc import _datacopied
 
 import pandas as pd
 import numpy as np
