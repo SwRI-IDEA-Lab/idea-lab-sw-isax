@@ -381,6 +381,46 @@ def read_WIND_dataset(fname):
     mag_df = pd.DataFrame(mag_data, index=pd.DatetimeIndex(dates)).sort_index()
     return mag_df 
 
+def read_OMNI_dataset(lst_fname,fmt_fname):
+    # Open files
+    omni_file = open(lst_fname)
+    omni_label = open(fmt_fname)
+    omni_label = omni_label.readlines()[4:] # skips first four lines which don't have data
+
+    # Extracting the column names from fmt file
+    columns = []                                           #list of column names to create
+    for i in range(len(omni_label)):
+            columns.append(omni_label[i].split()[1].replace(',',''))         #column names = [1] element of each line in fmt file
+                                                                            # and remove commas
+
+    #Create dictionary of OMNI data, then to dataframe
+    omni_dict={key:[] for key in columns}
+
+    col_tup = tuple(columns)
+    for line in omni_file:                             #based on example:
+        col_tup = line.split()                         #(key,value) = line.split()     #(key,value)=tuple
+        for j in range(len(columns)):               
+            omni_dict[columns[j]].append(col_tup[j])   #dict[key] = value 
+    
+    omni_df = pd.DataFrame(omni_dict)
+    
+    # Change datatypes to numeric
+    omni_df = omni_df.apply(pd.to_numeric)
+
+    # replace fill-values with NaNs
+    # TODO: (JK) Allow for more flexibility for replacing fill values other than IMF
+    omni_df.replace(to_replace=9999.99,value=np.nan,inplace = True)
+
+    # Datetime column
+    # TODO: (JK) Can think about moving this portion to 'convert_OMNI_EPOCH()' function
+    # TODO: (JK) Find a way to optimize or save? (b/c this takes about 1min to run for 1yr-data)
+    omni_df['Epoch'] = omni_df['Year'].astype(str)+'-'+omni_df['Day'].astype(str)+' '+omni_df['Hour'].astype(str)+':'+omni_df['Minute'].astype(str)
+    omni_df['Epoch'] = omni_df['Epoch'].apply(pd.to_datetime,format='%Y-%j %H:%M')
+
+    # Datetime index
+    mag_df = omni_df.loc[:,~omni_df.columns.isin(['Year','Day','Hour','Minute'])]
+    mag_df = mag_df.set_index('Epoch')
+    return mag_df
 
 def return_nans(mag_df, cols=None):
     """Determine the number of nans present
