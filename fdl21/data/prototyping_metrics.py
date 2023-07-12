@@ -389,8 +389,8 @@ def read_OMNI_dataset(lst_fname,fmt_fname):
 
     # Extracting the column names from fmt file
     columns = []                                           #list of column names to create
-    for i in range(len(omni_label)):
-            columns.append(omni_label[i].split()[1].replace(',',''))         #column names = [1] element of each line in fmt file
+    for row in omni_label:
+            columns.append(row.split()[1].replace(',',''))         #column names = [1] element of each line in fmt file
                                                                             # and remove commas
 
     #Create dictionary of OMNI data, then to dataframe
@@ -399,8 +399,8 @@ def read_OMNI_dataset(lst_fname,fmt_fname):
     col_tup = tuple(columns)
     for line in omni_file:                             #based on example:
         col_tup = line.split()                         #(key,value) = line.split()     #(key,value)=tuple
-        for j in range(len(columns)):               
-            omni_dict[columns[j]].append(col_tup[j])   #dict[key] = value 
+        for j,col in enumerate(columns):               
+            omni_dict[col].append(col_tup[j])   #dict[key] = value 
     
     omni_df = pd.DataFrame(omni_dict)
     
