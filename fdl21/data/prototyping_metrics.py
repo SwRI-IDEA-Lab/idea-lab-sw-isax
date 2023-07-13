@@ -382,6 +382,21 @@ def read_WIND_dataset(fname):
     return mag_df 
 
 def read_OMNI_dataset(lst_fname,fmt_fname):
+    """Function for reading the OMNI the dataset
+    
+    Parameters
+    ----------
+    lst_fname : str
+        Filename of list(lst) file that contains dataset to read in
+    
+    fmt_fname : str
+        Filename of format(fmt) file that contains information about data in lst_fname
+    
+    Returns
+    -------
+    mag_df : pd.DataFrame
+        Pandas dataframe containing the magnetometer data
+    """
     # Open files
     omni_file = open(lst_fname)
     omni_label = open(fmt_fname)
