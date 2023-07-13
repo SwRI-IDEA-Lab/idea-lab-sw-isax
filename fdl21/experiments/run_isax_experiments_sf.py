@@ -33,9 +33,9 @@ from anytree.exporter import DotExporter
 
 
 # # Native packages
-import data.helper_funcs as hf
-import model.isax_model as isax_model
-import visualization.isax_visualization as isax_vis
+import fdl21.data.helper_funcs as hf
+import fdl21.isax_model as isax_model
+import fdl21.visualization.isax_visualization as isax_vis
 
 wandb.login() 
 
