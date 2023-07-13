@@ -14,7 +14,7 @@ import dask
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
-import prototyping_metrics as pm
+import fdl21.data.prototyping_metrics as pm
 
 
 # Initialize Python Logger
