@@ -9,6 +9,7 @@ import datetime as dt
 import logging
 import os
 import sys
+import glob
 
 mod_dir = os.path.abspath(__file__).split('/')[:-2]
 src_directory = '/'.join(mod_dir)
@@ -381,16 +382,13 @@ def read_WIND_dataset(fname):
     mag_df = pd.DataFrame(mag_data, index=pd.DatetimeIndex(dates)).sort_index()
     return mag_df 
 
-def read_OMNI_dataset(lst_fname,fmt_fname):
+def read_OMNI_dataset(dir_name):
     """Function for reading the OMNI the dataset
     
     Parameters
     ----------
-    lst_fname : str
-        Filename of list(lst) file that contains dataset to read in
-    
-    fmt_fname : str
-        Filename of format(fmt) file that contains information about data in lst_fname
+    dir_name : str
+        Directory name that contains OMNI lst and fmt files
     
     Returns
     -------
@@ -398,6 +396,9 @@ def read_OMNI_dataset(lst_fname,fmt_fname):
         Pandas dataframe containing the magnetometer data
     """
     # Open files
+    lst_fname = glob.glob(f'{dir_name}/*lst')[0]
+    fmt_fname = glob.glob(f'{dir_name}/*fmt')[0]
+
     omni_file = open(lst_fname)
     omni_label = open(fmt_fname)
     omni_label = omni_label.readlines()[4:] # skips first four lines which don't have data
