@@ -333,6 +333,15 @@ def analyze_file(fname=None,
             LOG.error(msg)
             return {}, np.array([np.nan])
         cols = ['B_mag', 'BRTN_0', 'BRTN_1', 'BRTN_2']
+    
+    elif instrument == 'omni':
+        try:
+            mag_df = pm.read_OMNI_dataset(fname)
+        except Exception as e:
+            msg = f"{e}\n Script crashed at file: {fname}"
+            LOG.error(msg)
+            return {}, np.array([np.nan])
+        cols = ['Field','BX','BY','BZ']
 
     # Calculate histogram
     if histogram:
