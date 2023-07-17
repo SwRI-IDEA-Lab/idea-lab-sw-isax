@@ -14,7 +14,7 @@ import dask
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
-import prototyping_metrics as pm
+import fdl21.data.prototyping_metrics as pm
 
 
 # Initialize Python Logger
@@ -194,12 +194,20 @@ def generate_catalog(
 
     # Loop through each year we want to analyze and retrieve the filenames
     flist = []
-    for year in years_to_process:
-        tmp_flist = glob.glob(f"{data_path}/{year:0.0f}/*cdf")
-        # Sort the filenames by the integer given by int(YYYYMMDD)
-        tmp_flist.sort(key=lambda val: int(val.split('/')[-1].split('_')[-2]))
-        # Add the sorted files into the master file list
-        flist += tmp_flist
+    if instrument == 'omni':
+        # for omni: flist is list of directory names of directories with lst and fmt files
+        for year in years_to_process:
+            tmp_flist = glob.glob(f"{data_path}/{year:0.0f}")
+            flist += tmp_flist
+
+    else:
+        # (PSP, WIND, or etc.): flist is list of cdf file names
+        for year in years_to_process:
+            tmp_flist = glob.glob(f"{data_path}/{year:0.0f}/*cdf")
+            # Sort the filenames by the integer given by int(YYYYMMDD)
+            tmp_flist.sort(key=lambda val: int(val.split('/')[-1].split('_')[-2]))
+            # Add the sorted files into the master file list
+            flist += tmp_flist
     
     LOG.info(f"Found {len(flist):0.0f} files to process")
 
@@ -247,7 +255,7 @@ def generate_catalog(
 
         df = pd.DataFrame(data_out)
         df.to_csv(
-            save_file + '.txt',
+            save_file + '.csv',
             header=True
         )
         if histogram:
@@ -333,6 +341,15 @@ def analyze_file(fname=None,
             LOG.error(msg)
             return {}, np.array([np.nan])
         cols = ['B_mag', 'BRTN_0', 'BRTN_1', 'BRTN_2']
+    
+    elif instrument == 'omni':
+        try:
+            mag_df = pm.read_OMNI_dataset(fname)
+        except Exception as e:
+            msg = f"{e}\n Script crashed at file: {fname}"
+            LOG.error(msg)
+            return {}, np.array([np.nan])
+        cols = ['Field','BX','BY','BZ']
 
     # Calculate histogram
     if histogram:
