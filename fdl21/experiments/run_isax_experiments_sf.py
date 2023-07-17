@@ -473,9 +473,9 @@ def build_cache(
     ):
 
     if instrument == 'psp':
-        catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.txt' 
+        catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
-        catalog_fname = 'wind_master_catalog_2006_2022.txt'     
+        catalog_fname = 'wind_master_catalog_2006_2022.csv'     
 
     isax_pipe_dummy = isax_model.iSaxPipeline(
         orbit_fname = 'psp_orbit.csv',
@@ -589,9 +589,9 @@ def run_experiment(
     v = isax_vis.iSaxVisualizer()
     
     if instrument == 'psp':
-        catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.txt' 
+        catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
-        catalog_fname = 'wind_master_catalog_2006_2022.txt'
+        catalog_fname = 'wind_master_catalog_2006_2022.csv'
 
     isax_pipe = isax_model.iSaxPipeline(
         orbit_fname = 'psp_orbit.csv',
