@@ -577,22 +577,25 @@ def run_experiment(
     instrument: string
             instrument to analyze        
     """
-
+    # Cluster selection epsilon text (for pdf filename)
     if cluster_selection_epsilon is None:
         cse_text = 'NA'
     else:
         cse_text = str(int(cluster_selection_epsilon*10))
 
+    # File and directory path naming
     cache_folder = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
     pdf_file = cache_folder + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
     cache_folder =  '/cache/' + cache_folder + '/'
     v = isax_vis.iSaxVisualizer()
     
+    # Data catalog file name to access based on instrument
     if instrument == 'psp':
         catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
 
+    # Instantiate iSax model Pipeline
     isax_pipe = isax_model.iSaxPipeline(
         orbit_fname = 'psp_orbit.csv',
         catalog_fname = catalog_fname,
