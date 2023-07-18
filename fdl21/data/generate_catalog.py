@@ -247,7 +247,7 @@ def generate_catalog(
             if n%save_number == 0:
                 df = pd.DataFrame(data_out)
                 df.to_csv(
-                    save_file + '.txt',
+                    save_file + '.csv',
                     header=True
                 )
                 if histogram:
