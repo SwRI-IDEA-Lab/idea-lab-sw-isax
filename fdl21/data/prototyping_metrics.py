@@ -98,6 +98,52 @@ def convert_PSP_EPOCH(cdf):
     # Read in epoch data and return datetimes
     return cdflib.epochs.CDFepoch.to_datetime(cdf['epoch_mag_RTN'])
 
+
+def convert_OMNI_EPOCH(cdf):
+    """ Convenience function for generating datetimes from OMNI data
+
+    The EPOCH used here is the time in miliseconds that
+    has elapsed since 0000-01-01. Compute this by converting
+    the units of time from miliseconds to days and 
+    then adding that to the first date (0000-01-01).
+
+    Parameters
+    ----------
+    
+    cdf : cdflib.CDF
+        CDF object that encapsulates the dataset we are analyzing 
+    
+    Returns
+    -------
+    dates : np.array
+        A numpy array of datetime objects
+    
+    """
+    # Read in time data
+    time_ms = cdf['Epoch']
+   
+    # Convert to time in seconds
+    time_s = time_ms * 1e-3
+    
+    # Compute the number of days and store it as dt.timedelta object
+    # Note that this only works because the first argument to the 
+    # dt.timedelta object is a numerical value that represents the
+    # number of days.
+    time_days = np.array(
+        list(map(dt.timedelta, time_s * (1 / (24 * 3600))))
+    )
+    
+    # Python does not handle year 0, so we have to start at 1 AD
+    year0 = dt.datetime(year=1, month=1, day=1)
+    
+    # Compute the date by adding the total time in days to the first year
+    # For some reason, we need to add one extra day or else we're off by 1
+    dates = year0 + time_days - dt.timedelta(days=366)
+
+    # Result needs to be rounded to nearest minute, but can be done using .dt.round()
+    # on datetime column that uses "dates"
+
+    return dates
     
 def check_sampling_freq(mag_df, min_sep=None, verbose=False):
     """Determine the sampling frequency from the data
