@@ -463,33 +463,31 @@ class iSaxPipeline(object):
             *fname.split('/') # this is required do to behavior of os.join
         )
         LOG.debug(f'Extracting data from:\n {fname_full_path}')
-        if self.mag_df is not None:
-            if instrument == 'psp':
-                mag_df = pm.read_PSP_dataset(
-                    fname=fname_full_path,
-                    orbit=self.orbit,
-                    rads_norm=rads_norm,
-                    exponents_list=_EXPONENTS_LIST
-                )
-            elif instrument == 'wind':
-                mag_df = pm.read_WIND_dataset(
-                    fname=fname_full_path
-                )
-            mag_df['filename'] = [fname]*mag_df.shape[0]
+        
+        if instrument == 'psp':
+            mag_df = pm.read_PSP_dataset(
+                fname=fname_full_path,
+                orbit=self.orbit,
+                rads_norm=rads_norm,
+                exponents_list=_EXPONENTS_LIST
+            )
+        elif instrument == 'wind':
+            mag_df = pm.read_WIND_dataset(
+                fname=fname_full_path
+            )
+        elif instrument == 'omni':
+            mag_df = pm.read_OMNI_dataset(
+                fname=fname_full_path
+            )
+        
+        mag_df['filename'] = [fname]*mag_df.shape[0]
+        
+        if self.mag_df is not None:   
+            # if self.mag_df is not empty, concat mag_df with existing self.mag_df
             self.mag_df = pd.concat([self.mag_df, mag_df])            
-        else:
-            if instrument == 'psp':
-                self.mag_df = pm.read_PSP_dataset(
-                    fname=fname_full_path,
-                    orbit=self.orbit,
-                    rads_norm=rads_norm,
-                    exponents_list=_EXPONENTS_LIST
-                )
-            else:
-                self.mag_df = pm.read_WIND_dataset(
-                    fname=fname_full_path
-                )                
-            self.mag_df['filename'] = [fname]*self.mag_df.shape[0]
+        else:        
+            # otherwise, self.mag_df is not built yet and this is first self.mag_df
+            self.mag_df = mag_df
        
         et_t = time.time()
         duration = et_t - st_t
