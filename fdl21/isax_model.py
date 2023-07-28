@@ -48,6 +48,7 @@ from fdl21.data import helper_funcs as hf
 
 _PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
 _WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
+_OMNI_MAG_DATA_DIR = '/sw-data/omni/imf/'
 _SRC_DATA_DIR = os.path.join(
     _SRC_DIR,
     'data',
@@ -99,6 +100,8 @@ class iSaxPipeline(object):
         if instrument == 'psp':
             fmt = '%Y%m%d%H'
         elif instrument == 'wind':
+            fmt = '%Y%m%d'
+        elif instrument == 'omni':
             fmt = '%Y%m%d'
         converter = lambda val: hf.fname_to_datetime(val, fmt=fmt)
         dates = self._catalog['fname'].apply(converter)
@@ -456,6 +459,8 @@ class iSaxPipeline(object):
             data_dir = _PSP_MAG_DATA_DIR
         elif instrument=='wind' :
             data_dir = _WIND_MAG_DATA_DIR
+        elif instrument == 'omni':
+            data_dir = _OMNI_MAG_DATA_DIR
 
         # Generate the full path to the file
         fname_full_path = os.path.join(
