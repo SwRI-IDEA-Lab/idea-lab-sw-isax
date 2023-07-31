@@ -48,7 +48,7 @@ from fdl21.data import helper_funcs as hf
 
 _PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
 _WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
-_OMNI_MAG_DATA_DIR = '/sw-data/omni/imf/'
+_OMNI_MAG_DATA_DIR = '/sw-data/omni/'
 _SRC_DATA_DIR = os.path.join(
     _SRC_DIR,
     'data',
