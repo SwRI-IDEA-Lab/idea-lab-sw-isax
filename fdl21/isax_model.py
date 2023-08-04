@@ -516,13 +516,14 @@ class iSaxPipeline(object):
 
         Parameters
         ----------
-        fname : [type]
+        fname : str
+            name of file associated with the sequence of data
+        time_seq : np.array
             [description]
-        time_seq : [type]
+        mag_seq : np.array
             [description]
-        mag_seq : [type]
-            [description]
-
+        chunk_num : int
+            chunk number associated with the sequence of data
 
         Returns
         -------
