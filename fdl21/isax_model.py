@@ -526,8 +526,24 @@ class iSaxPipeline(object):
 
         Returns
         -------
-        [type]
-            [description]
+        ts_x : list
+            list of x-component of mag_seq (Bx)
+        
+        ts_y : list
+            list of y-component of mag_seq (By)
+
+        ts_z : list
+            list of z-component of mag_seq (Bz)
+        
+        ts_x_loc : dict
+            dictionary of annotations for Bx of mag_seq
+        
+        ts_y_loc : dict
+            dictionary of annotations for By of mag_seq
+        
+        ts_z_loc : dict
+            dictionary of annotations for Bz of mag_seq
+        
         """
         
         size = mag_seq.shape[0]
@@ -772,7 +788,11 @@ class iSaxPipeline(object):
         cache_folder='/cache/',
         instrument='psp'      
     ):
-        """Run the full pipeline
+        """Build new cache file or reload existing one to calculate PAA histogram for stand dev
+        and mean calculation
+
+        A cache file consists various information of the time sequence of data associated with the passed file.
+
 
         Parameters
         ----------
