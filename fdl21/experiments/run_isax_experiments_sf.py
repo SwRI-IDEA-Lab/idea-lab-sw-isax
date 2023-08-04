@@ -476,6 +476,8 @@ def build_cache(
         catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'     
+    elif instrument == 'omni':
+        catalog_fname = 'omni_master_catalog_1995_2022.csv'
 
     isax_pipe_dummy = isax_model.iSaxPipeline(
         orbit_fname = 'psp_orbit.csv',
