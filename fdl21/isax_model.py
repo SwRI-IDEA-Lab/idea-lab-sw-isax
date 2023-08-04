@@ -803,6 +803,8 @@ class iSaxPipeline(object):
             The final cadence of the interpolated timeseries, default is 1 seconds
         chunk_size : dt.timedelta
             The duration of each chunk, default is 300 seconds
+        overlap : [type]
+            [description]
         rads_norm : bool, optional
             Boolean flag for controlling the normalization of the magnetic field 
             to account for the decay of the field strength with heliocentric distance
@@ -816,13 +818,19 @@ class iSaxPipeline(object):
             The size of the smoothing window in seconds, default is 1800 seconds
         optimized: bool
             Use optimized version of the time_chunking algorithm
+        hist_max : [type]
+            [description]
+        bin_width : [type]
+            [description]
+        cache_folder : [type]
+            [description]
         instrument: string
             instrument to analyze
 
 
         Returns
         ---------
-        sucess : bool
+        success : bool
             Flag that returns true if cache completed successfully
 
         """
