@@ -24,8 +24,8 @@ from pathlib import Path
 
 # Add the ~/fdl-2021-solar-wind-repository/src directory to our path
 # this will ensure we can import the necessary modules
-_MODEL_DIR = os.path.abspath(__file__).split('/')[:-1]
-_SRC_DIR = os.path.join('/',*_MODEL_DIR[:-1])
+_MODEL_DIR = os.path.dirname( os.path.abspath(__file__))
+_SRC_DIR = os.path.dirname(_MODEL_DIR)
 sys.path.append(_SRC_DIR)
 
 
