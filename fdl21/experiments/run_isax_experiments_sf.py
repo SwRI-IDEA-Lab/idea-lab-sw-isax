@@ -599,9 +599,15 @@ def run_experiment(
     elif instrument == 'omni':
         catalog_fname = 'omni_master_catalog_1995_2022.csv'
 
+    # Orbit file
+    if instrument == 'omni':
+        orbit_fname = None
+    else: 
+        orbit_fname = 'psp_orbit.csv'
+
     # Instantiate iSax model Pipeline
     isax_pipe = isax_model.iSaxPipeline(
-        orbit_fname = 'psp_orbit.csv',
+        orbit_fname = orbit_fname,
         catalog_fname = catalog_fname,
         threshold = threshold,
         word_size = word_size,
@@ -618,7 +624,7 @@ def run_experiment(
 
     if failsafe:
         isax_pipe_dummy = isax_model.iSaxPipeline(
-            orbit_fname = 'psp_orbit.csv',
+            orbit_fname = orbit_fname,
             catalog_fname = catalog_fname,
             threshold = threshold,
             word_size = word_size,
