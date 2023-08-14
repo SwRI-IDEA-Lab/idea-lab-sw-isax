@@ -313,7 +313,7 @@ def analyze_file(fname=None,
         bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
         hist = np.zeros((bins.shape[0]-1,3))
     data_dict = {}  
-    data_dict['fname'] = '/'+'/'.join(fname.split('/')[-2:])
+    data_dict['fname'] = '/'+'/'.join(fname.replace('\\','/').split('/')[-2:])
     
     # Read in the dataset
     if instrument == 'wind':
