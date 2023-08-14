@@ -48,7 +48,7 @@ from fdl21.data import helper_funcs as hf
 
 _PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
 _WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
-_OMNI_MAG_DATA_DIR = '/sw-data/omni/'
+_OMNI_MAG_DATA_DIR = '/sw-data/nasaomnireader/'
 _SRC_DATA_DIR = os.path.join(
     _SRC_DIR,
     'data',
@@ -901,8 +901,15 @@ class iSaxPipeline(object):
                         chunk_filelist = {'chunk_filelist': self.chunk_filelist})            
 
             # Calculate Histogram
+            bins = self.bins
             for component in ['x', 'y', 'z']:
-                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins)
+                ts_comp = self.ts[component]
+                # reshape component time series for PAA transformation
+                ts_comp_reshape = ts_comp.reshape(ts_comp.shape + (1,))
+                # PAA transformation
+                fit_paa = self._paa.fit_transform(ts_comp_reshape)
+
+                hist, _ = np.histogram(fit_paa.reshape(-1), bins=bins.astype('float'))
                 self.hist[component] += hist
 
             return True
