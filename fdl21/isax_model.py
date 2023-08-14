@@ -797,8 +797,8 @@ class iSaxPipeline(object):
 
         Parameters
         ----------
-        flist : list
-            list of files that you want to process
+        file : str
+            The filename we wish to process
         cadence : dt.timedelta
             The final cadence of the interpolated timeseries, default is 1 seconds
         chunk_size : dt.timedelta
