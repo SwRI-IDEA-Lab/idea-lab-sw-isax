@@ -793,13 +793,13 @@ def run_experiment(
         node_sizes[component].sort_values(ascending=False, inplace=True)
 
     date_time = str(dt.datetime.now().strftime('%Y%m%d%H%M'))
-    wandb.init(
-        entity='solar-wind', 
-        name=f'{pdf_file}_{date_time}',
-        project='CB_week_8_60_full_'+instrument, 
-        job_type='plot-isax-node',
-        config=isax_pipe.input_parameters
-    )
+    # wandb.init(
+    #     entity='solar-wind', 
+    #     name=f'{pdf_file}_{date_time}',
+    #     project='CB_week_8_60_full_'+instrument, 
+    #     job_type='plot-isax-node',
+    #     config=isax_pipe.input_parameters
+    # )
 
     if not os.path.exists('runs'):
         os.makedirs('runs')
@@ -813,29 +813,29 @@ def run_experiment(
 
     dirname = pdf_file
  
-    push_to_cloud(parameter_file.split('/')[1], dirname=dirname + '_' + date_time, relative_folder='runs/')
-    example_table = wandb.Table(columns=[
-                    "Chunk Size",
-                    "Word Size",
-                    "Min Cardinality",
-                    "Max Cardinality",
-                    "Threshold",
-                    "Smooth_Window",
-                    "Detrend Window",
-                    "Overlap",
-                    "Component",
-                    "Min Samples",
-                    "Min Cluster Size",
-                    "Cluster Epsilon",
-                    "Number of Clusters", 
-                    "Number of Nodes", 
-                    "Cluster Image", 
-                    "Cluster PDF", 
-                    "Node PDF",
-                    "Tree",
-                    "Bucket Link"
-                    ]
-    ) 
+    # push_to_cloud(parameter_file.split('/')[1], dirname=dirname + '_' + date_time, relative_folder='runs/')
+    # example_table = wandb.Table(columns=[
+    #                 "Chunk Size",
+    #                 "Word Size",
+    #                 "Min Cardinality",
+    #                 "Max Cardinality",
+    #                 "Threshold",
+    #                 "Smooth_Window",
+    #                 "Detrend Window",
+    #                 "Overlap",
+    #                 "Component",
+    #                 "Min Samples",
+    #                 "Min Cluster Size",
+    #                 "Cluster Epsilon",
+    #                 "Number of Clusters", 
+    #                 "Number of Nodes", 
+    #                 "Cluster Image", 
+    #                 "Cluster PDF", 
+    #                 "Node PDF",
+    #                 "Tree",
+    #                 "Bucket Link"
+    #                 ]
+    # ) 
 
     if transliterate:
         component_annotations = {'x': pd.DataFrame(),'y': pd.DataFrame(), 'z': pd.DataFrame()}
@@ -924,27 +924,27 @@ def run_experiment(
         bucket_link = f"https://storage.cloud.google.com/storage/browser/isax-experiments-results/{dirname + '_' + date_time}"
 
 
-        example_table.add_data(
-            chunk_size.seconds,
-            word_size,
-            min_cardinality,
-            max_cardinality,
-            threshold,
-            smooth_window.seconds,
-            detrend_window.seconds,
-            overlap.seconds,
-            component,
-            min_samples,
-            min_cluster_size,
-            cluster_selection_epsilon,
-            np.max(hdbscan_clusters.labels_) + 1,
-            node_sizes[component].shape[0],
-            wandb.Image(cluster_fig),
-            gsurl_c,   
-            gsurl_n,
-            gsurl_tree,
-            bucket_link
-        )
+        # example_table.add_data(
+        #     chunk_size.seconds,
+        #     word_size,
+        #     min_cardinality,
+        #     max_cardinality,
+        #     threshold,
+        #     smooth_window.seconds,
+        #     detrend_window.seconds,
+        #     overlap.seconds,
+        #     component,
+        #     min_samples,
+        #     min_cluster_size,
+        #     cluster_selection_epsilon,
+        #     np.max(hdbscan_clusters.labels_) + 1,
+        #     node_sizes[component].shape[0],
+        #     wandb.Image(cluster_fig),
+        #     gsurl_c,   
+        #     gsurl_n,
+        #     gsurl_tree,
+        #     bucket_link
+        # )
     
     if transliterate:
         transliteration = component_annotations['x'].merge(component_annotations['y'], how='outer', left_index=True, right_index=True, suffixes=(None, '_y'))
@@ -954,8 +954,8 @@ def run_experiment(
         transliteration.to_csv('runs/'+ transliteration_file)
         push_to_cloud(transliteration_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
  
-    wandb.log({f"iSAX Experiment": example_table})
-    wandb.finish()
+    # wandb.log({f"iSAX Experiment": example_table})
+    # wandb.finish()
   
     
 if __name__ == "__main__":
