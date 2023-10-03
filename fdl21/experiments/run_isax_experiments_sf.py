@@ -479,8 +479,13 @@ def build_cache(
     elif instrument == 'omni':
         catalog_fname = 'omni_master_catalog_1995_2022.csv'
 
+    if instrument == 'omni':
+        orbit_fname = None
+    else:
+        orbit_fname = 'psp_orbit.csv'
+
     isax_pipe_dummy = isax_model.iSaxPipeline(
-        orbit_fname = 'psp_orbit.csv',
+        orbit_fname = orbit_fname,
         catalog_fname = catalog_fname,
         instrument=instrument
     )
