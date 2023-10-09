@@ -5,12 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: run as module",
+            "name": "iSAX",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
             "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
-            "justMyCode": true
+            "cwd":"${workspaceFolder}",
+            "justMyCode": false
         }
     ]
 }
