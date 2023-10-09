@@ -5,13 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "iSAX",
+            "name": "iSAX experiment",
             "type": "python",
             "request": "launch",
             "console": "integratedTerminal",
             "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
             "cwd":"${workspaceFolder}",
-            "justMyCode": false
+            "justMyCode": false,
+            "args": [
+                "-start_date", "2018-01-01",
+                "-stop_date", "2018-02-02",
+                "-cadence", "60",
+                "-instrument", "omni"
+            ]
         }
     ]
 }
