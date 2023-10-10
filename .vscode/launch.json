@@ -1,23 +1,42 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "iSAX experiment",
-            "type": "python",
-            "request": "launch",
-            "console": "integratedTerminal",
-            "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
-            "cwd":"${workspaceFolder}",
-            "justMyCode": false,
-            "args": [
-                "-start_date", "2018-01-01",
-                "-stop_date", "2018-02-02",
-                "-cadence", "60",
-                "-instrument", "omni"
-            ]
-        }
-    ]
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "iSAX generate catalog",
+      "type": "python",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "-start_year", "1994",
+        "-stop_year", "2023",
+        "-instrument", "omni",
+        "-data_path", "/mnt/c/sw-data/nasaomnireader/",
+        // "-debug", "10"
+        "-histogram"
+      ]
+    },
+    {
+      "name": "iSAX experiment",
+      "type": "python",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "-start_date", "2018-01-01",
+        "-stop_date", "2018-02-02",
+        "-cadence", "60",
+        "-instrument", "omni",
+        "-cache",
+        "-cache_folder", "/home/jasminekobayashi/isax_cache/"
+      ]
+    }
+  ]
 }
