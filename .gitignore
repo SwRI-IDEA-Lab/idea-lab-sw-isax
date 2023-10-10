@@ -163,6 +163,7 @@ cython_debug/
 *.txt
 *.csv
 *.cdf
+*.npz
 
 wandb/
 runs/
