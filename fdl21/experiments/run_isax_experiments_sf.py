@@ -477,7 +477,7 @@ def build_cache(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'     
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1995_2022.csv'
+        catalog_fname = 'omni_master_catalog_1994_2023.csv'
 
     if instrument == 'omni':
         orbit_fname = None
@@ -602,7 +602,7 @@ def run_experiment(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1995_2022.csv'
+        catalog_fname = 'omni_master_catalog_1994_2023.csv'
 
     # Orbit file
     if instrument == 'omni':
