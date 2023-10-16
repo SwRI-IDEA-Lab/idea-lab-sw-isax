@@ -1,5 +1,5 @@
 import os
-os.chdir('C:/Users/rokka/GH-repos/idea-lab-sw-isax')
+os.chdir('/home/jasminekobayashi/idea-lab-sw-isax')
 
 import glob
 import datetime as dt
