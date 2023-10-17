@@ -17,14 +17,17 @@ from fdl21 import isax_model
 from fdl21.experiments import run_isax_experiments_sf as isax_exp_sf
 import fdl21.visualization.isax_visualization as isax_vis
 
-#catalog_fname = 'data/omni_master_catalog_1995_2019.csv'
+#catalog_fname = 'data/omni_master_catalog_1994_2023.csv'
 
 
 if __name__ == "__main__":
     # Run experiment
     isax_exp_sf.run_experiment(input_file= None,                   #if None, cut of catalog is used
-                            start_date= dt.datetime(2018, 1, 1),  # start date of catalog cut
-                            stop_date= dt.datetime(2018, 2, 2),   # end date of catalog cut
-                            cadence=dt.timedelta(seconds=60),
-                            cache=True,
-                            instrument='omni')
+                               word_size=3,
+                               start_date= dt.datetime(2018, 1, 1),  # start date of catalog cut
+                               stop_date= dt.datetime(2018, 2, 2),   # end date of catalog cut
+                               cadence=dt.timedelta(seconds=60),
+                            #    chunk_size=dt.timedelta(seconds=600),
+                               smooth_window=dt.timedelta(seconds=1800),
+                               cache=True,
+                               instrument='omni')
