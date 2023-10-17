@@ -464,7 +464,7 @@ class iSaxPipeline(object):
 
         # Generate the full path to the file
         fname_full_path = os.path.join(
-            data_dir,
+            _SRC_DIR + data_dir,
             *fname.split('/') # this is required do to behavior of os.join
         )
         LOG.debug(f'Extracting data from:\n {fname_full_path}')
