@@ -677,7 +677,7 @@ def run_experiment(
         instrument_mp) = map(list, zip(*cache_list))                                
 
         with Pool(max_workers=n_processes) as pool:
-            good_files = pool.map(build_cache,
+            good_files = pool.map(isax_pipe.build_cache,
                                 flist_mp,
                                 cadence_mp,
                                 chunk_size_mp,
