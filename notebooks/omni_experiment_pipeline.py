@@ -17,7 +17,7 @@ from fdl21 import isax_model
 from fdl21.experiments import run_isax_experiments_sf as isax_exp_sf
 import fdl21.visualization.isax_visualization as isax_vis
 
-#catalog_fname = 'data/omni_master_catalog_1994_2023.csv'
+#catalog_fname = '/home/jasminekobayashi/idea-lab-sw-isax/data/omni_master_catalog_1994_2023.csv'
 
 
 if __name__ == "__main__":
@@ -30,4 +30,5 @@ if __name__ == "__main__":
                             #    chunk_size=dt.timedelta(seconds=600),
                                smooth_window=dt.timedelta(seconds=1800),
                                cache=True,
+                               cache_dir_path='/home/jasminekobayashi/isax_cache/',
                                instrument='omni')
