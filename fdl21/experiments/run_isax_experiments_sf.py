@@ -529,7 +529,7 @@ def run_experiment(
     min_cluster_size = 5,
     min_samples = 5,
     cache=False,
-    cache_folder= '/cache/', 
+    cache_dir_path= '/cache/', 
     transliterate = False,
     instrument='psp',
     cluster_selection_epsilon=None,
@@ -593,7 +593,7 @@ def run_experiment(
     # File and directory path naming
     cache_folder = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
     pdf_file = cache_folder + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
-    cache_folder =  '/cache/' + cache_folder + '/'
+    cache_folder =  cache_dir_path + cache_folder + '/'
     v = isax_vis.iSaxVisualizer()
     
     # Data catalog file name to access based on instrument
@@ -720,6 +720,7 @@ def run_experiment(
         centers = (bins[1:]+bins[0:-1])/2
         for component in ['x', 'y', 'z']:
             hist = isax_pipe.hist[component]
+            
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
             sig = np.sum(np.power(centers-mu, 2)*hist*delta)
