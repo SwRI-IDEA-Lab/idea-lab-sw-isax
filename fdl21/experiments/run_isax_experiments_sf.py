@@ -792,7 +792,7 @@ def run_experiment(
             node_level=node_level_depth
         )
         for node in isax_pipe.nodes_at_level[component][node_level_depth]:
-            node_sizes[component].append(node.get_annotations().shape[0])
+            node_sizes[component].append(pd.DataFrame(node.get_annotations()).shape[0])
 
     for component in ['x', 'y', 'z']:
         node_sizes[component] = pd.Series(node_sizes[component])
