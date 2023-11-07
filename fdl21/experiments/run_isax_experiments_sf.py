@@ -982,8 +982,8 @@ def run_experiment(
             component_dict_wand['gsurl_t z'],
             gsurl_tr
     )
-    wbrun.log({f"iSAX": example_table})
-    wbrun.finish()
+    #wbrun.log({f"iSAX": example_table})
+    #wbrun.finish()
 
     plt.close(component_dict_wand[f'TSNE x']) 
     plt.close(component_dict_wand[f'TSNE y']) 
