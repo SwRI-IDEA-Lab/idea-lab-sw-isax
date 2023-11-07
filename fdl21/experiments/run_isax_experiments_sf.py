@@ -7,6 +7,9 @@ import sys
 import os
 import random
 from itertools import product
+import cProfile
+from pstats import Stats
+from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor as Pool
 
 
@@ -27,10 +30,11 @@ import pandas as pd
 from sklearn.manifold import TSNE
 import seaborn as sns
 from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
 
 import wandb
 from anytree.exporter import DotExporter
-
+from anytree import PreOrderIter
 
 # # Native packages
 import fdl21.data.helper_funcs as hf
@@ -179,20 +183,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-plot_nodes',
-    help='Plots the individual nodes',
-    default=False,
-    action='store_true'
-)
-
-parser.add_argument(
-    '-failsafe',
-    help='Runs a dummy pipe to find bad files',
-    default=False,
-    action='store_true'
-)
-
-parser.add_argument(
     '-instrument',
     default='psp',
     help='Instrument to analyze: psp or wind',
@@ -213,11 +203,30 @@ parser.add_argument(
     type=int
 )
 
+parser.add_argument(
+    '-profiling',
+    help='Runs profiler',
+    default=False,
+    action='store_true'
+)
 
+parser.add_argument(
+    '-plot_cluster',
+    help='Plot clusters',
+    default=False,
+    action='store_true'
+)
 
-def plot_cluster(clusterer, distance_matrix, cluster_file='clusters.png'):
+parser.add_argument(
+    '-parallel',
+    help='Run parallel isax',
+    default=False,
+    action='store_true'
+)
+
+def plot_cluster_fig(clusterer, expected_val, cluster_file='clusters.png', metric='euclidean'):
     
-    projection = TSNE(metric='precomputed').fit_transform(distance_matrix)
+    projection = TSNE(metric=metric).fit_transform(expected_val)
 
     (x,y) = projection.T[0], projection.T[1]
 
@@ -235,31 +244,62 @@ def plot_cluster(clusterer, distance_matrix, cluster_file='clusters.png'):
     return fig
 
 
+def node_expected_val(node):
+    """Function that returns the node expected value for parallelization
+
+    Parameters
+    ----------
+    nodes : anytree node
+        nodes to retrieve expected values for
+    
+    return
+    ----------
+    expected_val: np.array
+        expected value for each letter of the node name
+    """
+
+    node_bkpt = node._do_bkpt()
+    return node_bkpt[2]
+
 def cluster_function(
     nodes_at_level,
     min_cluster_size=5,
     min_samples=5,
-    cluster_selection_epsilon=None
+    cluster_selection_epsilon=None,
+    metric='euclidean',
+    n_processes=4
 ):
-    LOG.info('Running clustering of nodes...')
-    distance_matrix = np.zeros((len(nodes_at_level),len(nodes_at_level)))
 
-    for i in tqdm(range(0,len(nodes_at_level)), desc=f'Calculating distance matrix...'):
-        for j in range(i+1,len(nodes_at_level)):
-            dis = nodes_at_level[i].get_min_max_distance(nodes_at_level[j])
-            distance_matrix[i,j] = dis[3]
-            distance_matrix[j,i] = dis[3]
+    LOG.info('Retrieving expected values...')
+
+    expected_val = []
+    for node in tqdm(nodes_at_level):
+        node_bkpt = node._do_bkpt()
+        expected_val.append(node_bkpt[2])
+
+    # chunksize = int(np.ceil(len(nodes_at_level)/n_processes))
+    # if chunksize < 4:
+    #     chunksize=1
+    # expected_val = process_map(node_expected_val, 
+    #                             nodes_at_level,
+    #                             max_workers=n_processes,
+    #                             chunksize=chunksize)
+    expected_val = np.array(expected_val)
+
+    LOG.info('Running clustering of nodes...')
 
     if cluster_selection_epsilon is None:
-        clusterer = hdbscan.HDBSCAN(metric='precomputed', min_cluster_size=min_cluster_size, min_samples=min_samples)
+        clusterer = hdbscan.HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, min_samples=min_samples)
     else:
-        epsilon = np.percentile(distance_matrix.reshape(-1)[distance_matrix.reshape(-1)>0], cluster_selection_epsilon/2)
-        LOG.info(f'Mean distance={np.median(distance_matrix.reshape(-1)[distance_matrix.reshape(-1)>0])}, cluster_selection_epsilon={epsilon} at {cluster_selection_epsilon} percentile')
-        clusterer = hdbscan.HDBSCAN(metric='precomputed', min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=cluster_selection_epsilon)
+        LOG.error("epsilon is no longer functional")
+        raise(NotImplementedError('epsilon not functional'))
+        # epsilon = np.percentile(distance_matrix.reshape(-1)[distance_matrix.reshape(-1)>0], cluster_selection_epsilon/2)
+        # LOG.info(f'Mean distance={np.median(distance_matrix.reshape(-1)[distance_matrix.reshape(-1)>0])}, cluster_selection_epsilon={epsilon} at {cluster_selection_epsilon} percentile')
+        # clusterer = hdbscan.HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=cluster_selection_epsilon)
 
-    clusterer.fit(distance_matrix)
-    return clusterer, distance_matrix
-    
+    clusterer.fit(expected_val)
+    return clusterer, expected_val
+
 
 def plot_cluster_curves(cluster, 
                         clusterer, 
@@ -267,10 +307,10 @@ def plot_cluster_curves(cluster,
                         node_level_depth,
                         isax_pipe, 
                         colors=100,
-                        percentiles = [[10,90], [20,80], [30,70], [40,60]],
                         max_t = 600,
                         cache=False,
                         cache_folder=None,
+                        percentiles = [[10,90], [20,80], [30,70], [40,60]],
                         instrument='psp'
                         ):
     """Function to plot the curves and information associated with a cluster
@@ -523,19 +563,19 @@ def run_experiment(
     chunk_size=dt.timedelta(seconds=300),
     smooth_window=dt.timedelta(seconds=2),
     detrend_window=dt.timedelta(seconds=1800),
-    node_level_depth = 2,
-    min_node_size = 5,
     overlap = dt.timedelta(seconds=0),
+    node_level_depth = 2,
     min_cluster_size = 5,
     min_samples = 5,
     cache=False,
-    cache_dir_path= '/cache/', 
+    cache_folder= '/cache/', 
     transliterate = False,
     instrument='psp',
     cluster_selection_epsilon=None,
-    plot_nodes=False,
-    failsafe=False,
-    n_processes=4
+    n_processes=4,
+    profiling=False,
+    plot_cluster=False,
+    parallel = False
  ):
     """Run the iSAX experiment
 
@@ -590,10 +630,10 @@ def run_experiment(
     else:
         cse_text = str(int(cluster_selection_epsilon*10))
 
-    # File and directory path naming
-    cache_folder = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
-    pdf_file = cache_folder + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
-    cache_folder =  cache_dir_path + cache_folder + '/'
+
+    run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
+    pdf_file = run_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
+    cache_folder =  cache_folder + run_prefix + '/'
     v = isax_vis.iSaxVisualizer()
     
     # Data catalog file name to access based on instrument
@@ -627,23 +667,6 @@ def run_experiment(
         instrument=instrument
     )   
 
-    if failsafe:
-        isax_pipe_dummy = isax_model.iSaxPipeline(
-            orbit_fname = orbit_fname,
-            catalog_fname = catalog_fname,
-            threshold = threshold,
-            word_size = word_size,
-            min_cardinality = min_cardinality,
-            max_cardinality = max_cardinality,
-            mu_x = mu_x,
-            std_x = std_x,
-            mu_y = mu_y,
-            std_y = std_y,
-            mu_z = mu_z,
-            std_z = std_z,
-            instrument=instrument
-        ) 
-
     if input_file is None:
         catalog_cut = isax_pipe.catalog[start_date:stop_date]
         flist = list(catalog_cut['fname'].values)
@@ -653,8 +676,10 @@ def run_experiment(
         flist = list(catalog_cut['fname'].values)
         LOG.info(f'Analyzing {len(flist)} between {catalog_cut.index[0]} {catalog_cut.index[-1]}')
 
-    # Running the cache once to build the cache files
-    if cache:
+    # Running the cache once to build the cache files, if the cache has not made up to the generation of the histogram
+    histogram_file = cache_folder + run_prefix + '_hist_' + str(len(flist)) + '.npz'
+    cache_file = Path(histogram_file)
+    if cache and not cache_file.is_file():
 
         cache_list = list(product(
                             flist,
@@ -674,45 +699,66 @@ def run_experiment(
         smooth_window_mp,
         detrend_window_mp,
         cache_folder_mp,
-        instrument_mp) = map(list, zip(*cache_list))                                
+        instrument_mp) = map(list, zip(*cache_list))
+                                        
+        LOG.info('Building cache in parallel...')
 
-        with Pool(max_workers=n_processes) as pool:
-            good_files = pool.map(isax_pipe.build_cache,
-                                flist_mp,
-                                cadence_mp,
-                                chunk_size_mp,
-                                overlap_mp,
-                                smooth_window_mp,
-                                detrend_window_mp,
-                                cache_folder_mp,
-                                instrument_mp)
+        chunksize = int(np.ceil(len(flist_mp)/n_processes))
+        if chunksize < 4:
+            chunksize=1        
+        process_map(build_cache,
+                    flist_mp,
+                    cadence_mp,
+                    chunk_size_mp,
+                    overlap_mp,
+                    smooth_window_mp,
+                    detrend_window_mp,
+                    cache_folder_mp,
+                    instrument_mp,
+                    max_workers=n_processes,
+                    chunksize = chunksize)
 
     # Running the cache twice to calculate the histogram, means and stds
     if cache:
-        bad_files = []
-        good_files = []
-        for file in tqdm(flist, desc=f'Creating file caches and histograms...'):
-            isax_pipe.mag_df = None
+        # bad_files = []
+        # good_files = []
 
-            try:
-                isax_pipe.build_cache(
-                    file=file,
-                    cadence=cadence,
-                    chunk_size=chunk_size,
-                    overlap = overlap,
-                    rads_norm=True,
-                    smooth=True,
-                    smooth_window=smooth_window,
-                    detrend=True,
-                    detrend_window=detrend_window,
-                    optimized=True,
-                    cache_folder=cache_folder,
-                    instrument=instrument
-                )
-                good_files.append(True)
-            except:
-                bad_files.append(file)
-                good_files.append(False)
+        # Check if a histogram cache file already exists
+        histogram_file = cache_folder + run_prefix + '_hist_' + str(len(flist)) + '.npz'
+        cache_file = Path(histogram_file)
+        if cache_file.is_file():
+            LOG.info('Restoring pre-calculated histogram')
+            variables = np.load(histogram_file, allow_pickle=True)
+            isax_pipe.bins = variables['bins'].ravel()[0]['bins']
+            isax_pipe.hist = variables['hist'].ravel()[0]
+        else:
+            for file in tqdm(flist, desc=f'Creating file caches and histograms...'):
+                isax_pipe.mag_df = None
+
+                try:
+                    isax_pipe.build_cache(
+                        file=file,
+                        cadence=cadence,
+                        chunk_size=chunk_size,
+                        overlap = overlap,
+                        rads_norm=True,
+                        smooth=True,
+                        smooth_window=smooth_window,
+                        detrend=True,
+                        detrend_window=detrend_window,
+                        optimized=True,
+                        cache_folder=cache_folder,
+                        instrument=instrument
+                    )
+                    # good_files.append(True)
+                except:
+                    pass
+                    # bad_files.append(file)
+                    # good_files.append(False)
+
+            np.savez(histogram_file, 
+                    bins = {'bins': isax_pipe.bins},
+                    hist = isax_pipe.hist) 
 
         LOG.info('Recalculating mean and standard deviations.')
         bins = isax_pipe.bins
@@ -720,7 +766,6 @@ def run_experiment(
         centers = (bins[1:]+bins[0:-1])/2
         for component in ['x', 'y', 'z']:
             hist = isax_pipe.hist[component]
-            
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
             sig = np.sum(np.power(centers-mu, 2)*hist*delta)
@@ -731,58 +776,29 @@ def run_experiment(
             isax_pipe._std[component] = sig            
             LOG.info(f'mu = {mu} and sig={sig} for ' + component + ' component')
 
-    flist = np.array(flist)
-    good_files = np.array(good_files)
-    flist = flist[good_files]
-
     for file in tqdm(flist, desc=f'Running pipeline...'):
         isax_pipe.mag_df = None
-        try:
 
-            if failsafe:
-                isax_pipe_dummy.run_pipeline(
-                    flist=[file],
-                    cadence=cadence,
-                    chunk_size=chunk_size,
-                    overlap = overlap,
-                    rads_norm=True,
-                    smooth=True,
-                    smooth_window=smooth_window,
-                    detrend=True,
-                    detrend_window=detrend_window,
-                    optimized=True,
-                    cache_folder=cache_folder,
-                    cache=cache,
-                    instrument=instrument
-                )
+        isax_pipe.run_pipeline(
+            flist=[file],
+            cadence=cadence,
+            chunk_size=chunk_size,
+            overlap = overlap,
+            rads_norm=True,
+            smooth=True,
+            smooth_window=smooth_window,
+            detrend=True,
+            detrend_window=detrend_window,
+            optimized=True,
+            cache_folder=cache_folder,
+            cache=cache,
+            instrument=instrument,
+            parallel = parallel
+        )
 
-            isax_pipe.run_pipeline(
-                flist=[file],
-                cadence=cadence,
-                chunk_size=chunk_size,
-                overlap = overlap,
-                rads_norm=True,
-                smooth=True,
-                smooth_window=smooth_window,
-                detrend=True,
-                detrend_window=detrend_window,
-                optimized=True,
-                cache_folder=cache_folder,
-                cache=cache,
-                instrument=instrument
-            )
-
-            # reset dummie's forests
-            isax_pipe_dummy._sw_forest = {'x': None, 'y': None, 'z': None, 'all': None}
-        except:
-            bad_files.append(file)
-
-
-    print('Bad Files------------------------------------------------------------')
-    print(bad_files)
-    bad_files_df = pd.DataFrame(data={'Bad Files': bad_files})
-    bad_files_df.to_csv(f'bad_files_{instrument}.csv')
-    print('------------------------------------------------------------')
+    if parallel:
+        for component in ['x', 'y', 'z']:
+            isax_pipe.sw_forest[component].forest[0].parallel_escalation()
 
     node_sizes = defaultdict(list)
     LOG.info('Getting nodes for files')
@@ -792,7 +808,7 @@ def run_experiment(
             node_level=node_level_depth
         )
         for node in isax_pipe.nodes_at_level[component][node_level_depth]:
-            node_sizes[component].append(pd.DataFrame(node.get_annotations()).shape[0])
+            node_sizes[component].append(len(node.get_annotations()))
 
     for component in ['x', 'y', 'z']:
         node_sizes[component] = pd.Series(node_sizes[component])
@@ -820,148 +836,160 @@ def run_experiment(
     dirname = pdf_file
  
     # push_to_cloud(parameter_file.split('/')[1], dirname=dirname + '_' + date_time, relative_folder='runs/')
-    # example_table = wandb.Table(columns=[
-    #                 "Chunk Size",
-    #                 "Word Size",
-    #                 "Min Cardinality",
-    #                 "Max Cardinality",
-    #                 "Threshold",
-    #                 "Smooth_Window",
-    #                 "Detrend Window",
-    #                 "Overlap",
-    #                 "Component",
-    #                 "Min Samples",
-    #                 "Min Cluster Size",
-    #                 "Cluster Epsilon",
-    #                 "Number of Clusters", 
-    #                 "Number of Nodes", 
-    #                 "Cluster Image", 
-    #                 "Cluster PDF", 
-    #                 "Node PDF",
-    #                 "Tree",
-    #                 "Bucket Link"
-    #                 ]
-    # ) 
 
     if transliterate:
-        component_annotations = {'x': pd.DataFrame(),'y': pd.DataFrame(), 'z': pd.DataFrame()}
-        transliteration_file = pdf_file + '_transliteration.csv'
+        component_annotations = {'x': {},'y': {}, 'z': {}}
+        for component in component_annotations.keys():
+            component_annotations[component] = {
+                                                'File': [],
+                                                'Component': [],
+                                                't0': [],
+                                                't1': [],
+                                                'chunk_num': [],
+                                                f'cluster {component}': [],
+                                                f'p_node {component}': []
+                                            }
     
+    component_dict_wand = {}
     for component in ['x','y','z']:
 
         nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
 
         ## Clustering
-        hdbscan_clusters, distance_matrix = cluster_function(
+        hdbscan_clusters, expected_val = cluster_function(
             nodes_at_level,
             min_cluster_size=min_cluster_size,
             min_samples=min_samples,
-            cluster_selection_epsilon=cluster_selection_epsilon
+            cluster_selection_epsilon=cluster_selection_epsilon,
+            n_processes=n_processes
         )
 
-        pdf_file_n = pdf_file + '_' + f'{component}' + '_nodes'  + '.pdf'
-        if plot_nodes: pdf_n = PdfPages('runs/' + pdf_file_n)   
+        if transliterate:
+
+            for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
+                                        desc=f'Transliterating nodes...'):
+                node_index = (hdbscan_clusters.labels_==cluster).nonzero()[0]
+                nodes = [nodes_at_level[i] for i in node_index]
+
+                for node in nodes:
+
+                    annotations = node.get_annotations()
+                    for key, value in annotations.items():
+                        component_annotations[component][key] += value
+                    
+                    component_annotations[component][f'cluster {component}'] += [cluster] * len(annotations['File'])        
+                    component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
+
 
         pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
-        pdf_c = PdfPages('runs/' + pdf_file_c)
+        if plot_cluster:
 
+            LOG.info('Plotting clusters ...')
+            pdf_c = PdfPages('runs/' + pdf_file_c)
+
+            for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
+                                        desc=f'Plotting nodes in {cluster} clusters...'):
+
+                fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                                            cache=cache, cache_folder=cache_folder)
+                pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
+                plt.close(fig_c)
+
+            pdf_c.close()
+            push_to_cloud(pdf_file_c, dirname=dirname + '_' + date_time, relative_folder='runs/')
+        
+        component_dict_wand[f'gsurl_c {component}']  = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{pdf_file_c}"  
+
+        LOG.info('Plotting tree...')
         tree_file = pdf_file + '_' + f'{component}' + '_tree'  + '.png'
-        cluster_file = pdf_file + '_' + f'{component}' + '_tsne'  + '.png'
-
-        if transliterate: component_annotations[component] = pd.DataFrame()
-        
-        for cluster in np.arange(-1, np.max(hdbscan_clusters.labels_)+1):
-
-            cluster_annotations=pd.DataFrame()
-
-            fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
-                                        cache=cache, cache_folder=cache_folder)
-            pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
-            if plot_nodes: pdf_n.savefig(fig_c, bbox_inches='tight', dpi=200)
-            plt.close(fig_c)
-
-            node_index = (hdbscan_clusters.labels_==cluster).nonzero()[0]
-            nodes = [nodes_at_level[i] for i in node_index]
-
-            if transliterate or plot_nodes:
-
-                for node in tqdm(nodes, desc=f'Plotting or transliterating {component} nodes for cluster {cluster}...'):
-
-                    if transliterate:
-                        cluster_annotations = pd.concat([cluster_annotations, node.get_annotations()]) 
-                    
-                    if plot_nodes:
-                        fig_n = plot_node(
-                                        node,
-                                        isax_pipe,
-                                        component,
-                                        ntimeseries = 5,
-                                        colors = 100,
-                                        max_t = chunk_size.seconds,
-                                        cache=cache,
-                                        cache_folder=cache_folder
-                                        )
-                    
-                        pdf_n.savefig(fig_n, bbox_inches='tight', dpi=200)
-                        plt.close(fig_n)
-
-            if transliterate:
-                cluster_annotations[f'Letter {component}'] = str(cluster)+component
-                component_annotations[component]  = pd.concat([component_annotations[component], cluster_annotations])
-
-        if transliterate:
-            component_annotations[component] = component_annotations[component].set_index(['File', 'chunk_num']).sort_index()
-        
-        pdf_c.close()
-        LOG.info('Pushing to the cloud!')
-        push_to_cloud(pdf_file_c, dirname=dirname + '_' + date_time, relative_folder='runs/')
-        
-        if plot_nodes: 
-            pdf_n.close()
-            push_to_cloud(pdf_file_n, dirname=dirname + '_' + date_time, relative_folder='runs/')
-        
-        cluster_fig = plot_cluster(hdbscan_clusters, distance_matrix, cluster_file='runs/' + cluster_file)
-        push_to_cloud(cluster_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
-        gsurl_c = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{pdf_file_c}"  
-        gsurl_n = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{pdf_file_n}"    
         DotExporter(isax_pipe.sw_forest[component].forest[0].root).to_picture('runs/' + tree_file)
         push_to_cloud(tree_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
-        gsurl_tree = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{tree_file}"
-        bucket_link = f"https://storage.cloud.google.com/storage/browser/isax-experiments-results/{dirname + '_' + date_time}"
+        component_dict_wand[f'gsurl_t {component}'] = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{tree_file}"
 
+        LOG.info('Plotting TSNE...')
+        cluster_file = pdf_file + '_' + f'{component}' + '_tsne'  + '.png'
+        component_dict_wand[f'TSNE {component}'] = plot_cluster_fig(hdbscan_clusters, expected_val, cluster_file='runs/' + cluster_file)
+        push_to_cloud(cluster_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
 
-        # example_table.add_data(
-        #     chunk_size.seconds,
-        #     word_size,
-        #     min_cardinality,
-        #     max_cardinality,
-        #     threshold,
-        #     smooth_window.seconds,
-        #     detrend_window.seconds,
-        #     overlap.seconds,
-        #     component,
-        #     min_samples,
-        #     min_cluster_size,
-        #     cluster_selection_epsilon,
-        #     np.max(hdbscan_clusters.labels_) + 1,
-        #     node_sizes[component].shape[0],
-        #     wandb.Image(cluster_fig),
-        #     gsurl_c,   
-        #     gsurl_n,
-        #     gsurl_tree,
-        #     bucket_link
-        # )
-    
+    transliteration_file = pdf_file + '_transliteration.csv'
     if transliterate:
-        transliteration = component_annotations['x'].merge(component_annotations['y'], how='outer', left_index=True, right_index=True, suffixes=(None, '_y'))
-        transliteration = transliteration.merge(component_annotations['z'], how='outer', left_index=True, right_index=True, suffixes=(None, '_y'))
+        transliteration_x = pd.DataFrame(component_annotations['x']).set_index(['File', 'chunk_num']).sort_index()
+        transliteration_y = pd.DataFrame(component_annotations['y']).set_index(['File', 'chunk_num']).sort_index()
+        transliteration_z = pd.DataFrame(component_annotations['z']).set_index(['File', 'chunk_num']).sort_index()
+
+        transliteration = transliteration_x.merge(transliteration_y, how='outer', left_index=True, right_index=True, suffixes=(None, '_y'))
+        transliteration = transliteration.merge(transliteration_z, how='outer', left_index=True, right_index=True, suffixes=(None, '_z'))
         transliteration.sort_values(['File', 'chunk_num'], inplace=True)
-        transliteration = transliteration.loc[:,['t0', 't1', 'Letter x', 'Letter y', 'Letter z']]
+        transliteration = transliteration.loc[:,['t0', 't1', 'cluster x', 'p_node x', 'cluster y', 'p_node y', 'cluster z', 'p_node z']]
+
+
         transliteration.to_csv('runs/'+ transliteration_file)
         push_to_cloud(transliteration_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
+
+    gsurl_tr = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{transliteration_file}"
  
-    # wandb.log({f"iSAX Experiment": example_table})
-    # wandb.finish()
+    example_table = wandb.Table(columns=[
+                    "Cadence",
+                    "Chunk Size",
+                    "Detrend Window",
+                    "Smooth_Window",
+                    "Overlap",
+                    "Word Size",
+                    "Min Cardinality",
+                    "Max Cardinality",
+                    "Threshold",
+                    "Node Depth",
+                    "Min Samples",
+                    "Min Cluster Size",
+                    "Cluster Epsilon",
+                    "Number of Clusters", 
+                    "TSNE x", 
+                    "TSNE y", 
+                    "TSNE z", 
+                    "Cluster PDF x", 
+                    "Cluster PDF y", 
+                    "Cluster PDF z",
+                    "Tree x",
+                    "Tree y",
+                    "Tree z",
+                    "Transliteration"
+                    ]
+    )
+
+    example_table.add_data(
+            cadence.seconds,
+            chunk_size.seconds,
+            detrend_window.seconds,
+            smooth_window.seconds,
+            overlap.seconds,
+            word_size,
+            min_cardinality,
+            max_cardinality,
+            threshold,
+            node_level_depth,
+            min_samples,
+            min_cluster_size,
+            cluster_selection_epsilon,
+            np.max(hdbscan_clusters.labels_) + 1,
+            wandb.Image(component_dict_wand['TSNE x']),
+            wandb.Image(component_dict_wand['TSNE y']),
+            wandb.Image(component_dict_wand['TSNE z']),
+            component_dict_wand['gsurl_c x'],   
+            component_dict_wand['gsurl_c y'],   
+            component_dict_wand['gsurl_c z'],
+            component_dict_wand['gsurl_t x'],
+            component_dict_wand['gsurl_t y'],
+            component_dict_wand['gsurl_t z'],
+            gsurl_tr
+    )
+    wbrun.log({f"iSAX": example_table})
+    wbrun.finish()
+
+    plt.close(component_dict_wand[f'TSNE x']) 
+    plt.close(component_dict_wand[f'TSNE y']) 
+    plt.close(component_dict_wand[f'TSNE z'])
+    plt.close('all')
+
   
     
 if __name__ == "__main__":
@@ -975,9 +1003,33 @@ if __name__ == "__main__":
         args['stop_date'],
         '%Y-%m-%d'
     )
+
+    run_prefix = f"CS{args['chunk_size']}_C{args['cadence']}_SW{args['smooth_window']}_DW{args['detrend_window']}_O{args['overlap']}_{args['instrument']}"
+    profile_file = run_prefix + f"_WS{args['word_size']}_CA{args['min_cardinality']}_{args['max_cardinality']}_MCS{args['min_cluster_size']}"
+    profile_file = profile_file + f"_MS{args['min_samples']}_T{args['threshold']}_NLD{args['node_level_depth']}_profile.txt"
+
+
     args['cadence'] = dt.timedelta(seconds=args['cadence'])
     args['chunk_size'] = dt.timedelta(seconds=args['chunk_size'])
     args['overlap'] = dt.timedelta(seconds=args['overlap'])
     args['detrend_window'] = dt.timedelta(seconds=args['detrend_window'])
     args['smooth_window'] = dt.timedelta(seconds=args['smooth_window'])
-    run_experiment(**args)
+
+    if args['profiling']:
+        pr = cProfile.Profile()
+        pr.enable()
+        run_experiment(**args)
+        pr.disable()
+
+        if not os.path.exists('profiles'):
+            os.makedirs('profiles')
+
+        with open('profiles/'+profile_file, 'w') as stream:
+            stats = Stats(pr, stream=stream)
+            stats.strip_dirs()
+            stats.sort_stats('time')
+            stats.dump_stats('.prof_stats')
+            stats.print_stats()
+    else:
+
+        run_experiment(**args)

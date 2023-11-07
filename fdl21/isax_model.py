@@ -388,7 +388,7 @@ class iSaxPipeline(object):
         optimized : bool
             Flag that activates the optimized or non-optimized chunking function
         verbose : bool
-            Flag that eables the printing of information as files are processed
+            Flag that enables the printing of information as files are processed
  
         """
         st_t = time.time()
@@ -631,11 +631,10 @@ class iSaxPipeline(object):
         self.ts['x'] = np.array(ts_x_final).squeeze()
         self.ts['y'] = np.array(ts_y_final).squeeze()
         self.ts['z'] = np.array(ts_z_final).squeeze()
-
-        # Convert the dictionaries of annotations to DataFrames
-        self.ts_loc['x'] = pd.DataFrame(ts_x_loc_final)
-        self.ts_loc['y'] = pd.DataFrame(ts_y_loc_final)
-        self.ts_loc['z'] = pd.DataFrame(ts_z_loc_final)
+        
+        self.ts_loc['x'] = ts_x_loc_final
+        self.ts_loc['y'] = ts_y_loc_final
+        self.ts_loc['z'] = ts_z_loc_final
         
         et_t = time.time()
         duration = et_t - st_t
@@ -835,81 +834,84 @@ class iSaxPipeline(object):
 
         """
 
-        self._paa = PiecewiseAggregateApproximation(self.word_size)
-        self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
-        
-        if self.hist is None:
-            self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
-                        'y': np.zeros((self.bins.shape[0]-1)),      
-                        'z': np.zeros((self.bins.shape[0]-1))}
 
-        # update the dictionary with out input parameters
-        self.input_parameters['rads_norm'] = rads_norm
-        # self.input_parameters['files_analyzed'] = flist
-        self.input_parameters['cadence'] = cadence.seconds
-        self.input_parameters['chunk_size'] = chunk_size.seconds
-        self.input_parameters['overlap'] = overlap.seconds
-        self.input_parameters['smooth'] = smooth
-        self.input_parameters['smooth_window'] = smooth_window.seconds
-        self.input_parameters['detrend'] = detrend
-        self.input_parameters['detrend_window'] = detrend_window.seconds
-        self.input_parameters['optimized'] = optimized
+        try:
 
-        # Check if the cache file already exists
-        output_file = cache_folder + file.split('.')[0] + '.npz'
-        cache_file = Path(output_file)
-        if cache_file.is_file():
-            LOG.info('Loading cached file...')
-            self.restore_variables(output_file)
-        else:
-            LOG.info('Creating cached file...')
-            self.read_file(
-                fname = file,
-                rads_norm=rads_norm,
-                instrument=instrument
-            )
+            self._paa = PiecewiseAggregateApproximation(self.word_size)
+            self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
+            
+            if self.hist is None:
+                self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
+                            'y': np.zeros((self.bins.shape[0]-1)),      
+                            'z': np.zeros((self.bins.shape[0]-1))}
 
-            cols = [val for val in self.mag_df.columns if 'mag' not in val]
-            cols = [val for val in cols if 'filename' not in val]
-            #cols = [val for val in self.mag_df.columns if 'mag' not in val]
-            self.get_time_chunks(
-                mag_df = self.mag_df,
-                cols = cols,
-                cadence = cadence,
-                chunk_size = chunk_size,
-                overlap = overlap,
-                smooth = smooth,
-                smooth_window = smooth_window,
-                detrend = detrend,
-                detrend_window = detrend_window,
-                optimized = optimized
-            )
+            # update the dictionary with out input parameters
+            self.input_parameters['rads_norm'] = rads_norm
+            # self.input_parameters['files_analyzed'] = flist
+            self.input_parameters['cadence'] = cadence.seconds
+            self.input_parameters['chunk_size'] = chunk_size.seconds
+            self.input_parameters['overlap'] = overlap.seconds
+            self.input_parameters['smooth'] = smooth
+            self.input_parameters['smooth_window'] = smooth_window.seconds
+            self.input_parameters['detrend'] = detrend
+            self.input_parameters['detrend_window'] = detrend_window.seconds
+            self.input_parameters['optimized'] = optimized
 
-            self.build_annotations()
-            if not os.path.exists(cache_folder + '/' + file.split('/')[1] + '/'):
-                os.makedirs(cache_folder + '/' + file.split('/')[1] + '/')  
+            # Check if the cache file already exists
+            output_file = cache_folder + file.split('.')[0] + '.npz'
+            cache_file = Path(output_file)
+            if cache_file.is_file():
+                self.restore_variables(output_file)
 
-            np.savez(cache_folder + file.split('.')[0] + '.npz', 
-                    ts = self.ts, 
-                    ts_loc = self.ts_loc,
-                    mag_df = {'mag': self.mag_df},
-                    interp_time_seq = {'time_seq': self.interp_time_seq},
-                    interp_mag_seq = {'mag_seq': self.interp_mag_seq},
-                    chunk_filelist = {'chunk_filelist': self.chunk_filelist})            
+            else:
+                self.read_file(
+                    fname = file,
+                    rads_norm=rads_norm,
+                    instrument=instrument
+                )
 
-        # Calculate Histogram
-        bins = self.bins
-        for component in ['x', 'y', 'z']:
-            ts_comp = self.ts[component]
-            # reshape component time series for PAA transformation
-            ts_comp_reshape = ts_comp.reshape(ts_comp.shape + (1,))
-            # PAA transformation
-            fit_paa = self._paa.fit_transform(ts_comp_reshape)
+                cols = [val for val in self.mag_df.columns if 'mag' not in val]
+                cols = [val for val in cols if 'filename' not in val]
+                #cols = [val for val in self.mag_df.columns if 'mag' not in val]
+                self.get_time_chunks(
+                    mag_df = self.mag_df,
+                    cols = cols,
+                    cadence = cadence,
+                    chunk_size = chunk_size,
+                    overlap = overlap,
+                    smooth = smooth,
+                    smooth_window = smooth_window,
+                    detrend = detrend,
+                    detrend_window = detrend_window,
+                    optimized = optimized
+                )
 
-            hist, _ = np.histogram(fit_paa.reshape(-1), bins=bins.astype('float'))
-            self.hist[component] += hist
-            assert np.sum(self.hist[component]) != 0.0, "{comp} histogram is empty. Perhaps check ts['{comp}']".format(comp=component)
-        
+                self.build_annotations()
+
+                if not os.path.exists(cache_folder + '/' + file.split('/')[1] + '/'):
+                    os.makedirs(cache_folder + '/' + file.split('/')[1] + '/')  
+
+                # print(file, self.ts['x'].shape, self.ts['y'].shape, self.ts['z'].shape)
+                # if len(self.ts['x'].shape)<2 or len(self.ts['y'].shape)<2 or len(self.ts['z'].shape)<2:
+                #     print(file, self.ts['x'].shape)
+
+                np.savez(cache_folder + file.split('.')[0] + '.npz', 
+                        ts = self.ts, 
+                        ts_loc = self.ts_loc,
+                        mag_df = {'mag': self.mag_df},
+                        interp_time_seq = {'time_seq': self.interp_time_seq},
+                        interp_mag_seq = {'mag_seq': self.interp_mag_seq},
+                        chunk_filelist = {'chunk_filelist': self.chunk_filelist})            
+
+            # Calculate Histogram
+            for component in ['x', 'y', 'z']:
+                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins)
+                self.hist[component] += hist
+
+            return True
+
+        except:
+            return False
 
 
     def run_pipeline(
