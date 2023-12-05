@@ -30,9 +30,11 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "args": [
+        "-word_size","3",
         "-start_date", "2018-01-01",
         "-stop_date", "2018-02-02",
         "-cadence", "60",
+        "-smooth_window","1800",
         "-instrument", "omni",
         "-cache",
         "-cache_folder", "/home/jasminekobayashi/isax_cache/",
