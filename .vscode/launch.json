@@ -35,7 +35,9 @@
         "-cadence", "60",
         "-instrument", "omni",
         "-cache",
-        "-cache_folder", "/home/jasminekobayashi/isax_cache/"
+        "-cache_folder", "/home/jasminekobayashi/isax_cache/",
+        "-transliterate", 
+        "-plot_cluster"
       ]
     }
   ]
