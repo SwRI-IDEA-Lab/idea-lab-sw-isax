@@ -891,7 +891,7 @@ def run_experiment(
                                         desc=f'Plotting nodes in {cluster} clusters...'):
 
                 fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
-                                            cache=cache, cache_folder=cache_folder)
+                                            cache=cache,instrument=instrument, cache_folder=cache_folder)
                 pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
                 plt.close(fig_c)
 
