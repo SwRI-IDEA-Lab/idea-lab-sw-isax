@@ -871,9 +871,6 @@ hdbscan_clusters, expected_val = cluster_function(
     n_processes=n_processes
 )
 
-#%% unclustered nodes [new]
-unclusetered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
-
 # %% 
 if transliterate:
 
@@ -890,6 +887,14 @@ if transliterate:
             
             component_annotations[component][f'cluster {component}'] += [cluster] * len(annotations['File'])        
             component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
+
+#%% unclustered nodes
+unclustered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
+# cluster the unclustered nodes
+if cluster_selection_epsilon is None:
+        clusterer = hdbscan.HDBSCAN(metric='euclidean', min_cluster_size=min_cluster_size, min_samples=min_samples)
+no_cluster_new_clusters = clusterer.fit(unclustered_nodes)
+
 
 # %% plot clusters
 pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
