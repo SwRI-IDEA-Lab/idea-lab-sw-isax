@@ -549,7 +549,8 @@ def build_cache(
             instrument=instrument
         )
 
-# %% def run_experiment(
+# %% Parameters
+# def run_experiment(
 input_file = None
 start_date=dt.datetime(2018, 1, 1)          #not default
 stop_date=dt.datetime(2018, 6, 1)           #not default
@@ -581,6 +582,7 @@ profiling=False
 plot_cluster=True                           #not default
 parallel = False
 
+# %% Run the iSAX experiment (pre-clustering)
 """Run the iSAX experiment
 
 Parameters
@@ -868,7 +870,7 @@ for component in ['x']: #just use x-component (for now)
         n_processes=n_processes
     )
 
-#%%
+#%% unclustered nodes [new]
     unclusetered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
 
 # %% 
