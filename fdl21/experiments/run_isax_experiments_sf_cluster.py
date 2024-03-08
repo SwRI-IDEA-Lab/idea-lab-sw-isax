@@ -894,7 +894,11 @@ unclustered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
 if cluster_selection_epsilon is None:
         clusterer = hdbscan.HDBSCAN(metric='euclidean', min_cluster_size=min_cluster_size, min_samples=min_samples)
 no_cluster_new_clusters = clusterer.fit(unclustered_nodes)
-
+print(np.unique(no_cluster_new_clusters.labels_))
+# %% Biggest Cluster
+# Find the biggest cluster
+largest_cluster_label = np.bincount(hdbscan_clusters.labels_[hdbscan_clusters.labels_!=-1]).argmax()
+print(largest_cluster_label)
 
 # %% plot clusters
 pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
