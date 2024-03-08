@@ -551,11 +551,11 @@ def build_cache(
 
 # %% def run_experiment(
 input_file = None
-start_date=dt.datetime(2018, 1, 1)
-stop_date=dt.datetime(2018, 6, 1)
+start_date=dt.datetime(2018, 1, 1)          #not default
+stop_date=dt.datetime(2018, 6, 1)           #not default
 min_cardinality = 8
 max_cardinality = 32
-word_size = 5
+word_size = 5                               #not default
 threshold = 200
 mu_x = 0.
 std_x = 3.5
@@ -563,22 +563,22 @@ mu_y = 0.
 std_y = 3.4
 mu_z = 0.
 std_z = 3.4
-cadence=dt.timedelta(seconds=60)
-chunk_size=dt.timedelta(seconds=3000)
-smooth_window=dt.timedelta(seconds=18000)
-detrend_window=dt.timedelta(seconds=3000)
+cadence=dt.timedelta(seconds=60)            #not default
+chunk_size=dt.timedelta(seconds=3000)       #not default
+smooth_window=dt.timedelta(seconds=18000)   #not default
+detrend_window=dt.timedelta(seconds=3000)   #not default
 overlap = dt.timedelta(seconds=0)
 node_level_depth = 2
 min_cluster_size = 5
 min_samples = 5
-cache=True
-cache_folder= "/home/jasminekobayashi/isax_cache/"
+cache=True                                  #not default
+cache_folder= "/home/jasminekobayashi/isax_cache/"  #not default
 transliterate = False
-instrument='omni'
+instrument='omni'                           #not default
 cluster_selection_epsilon=None
 n_processes=4
 profiling=False
-plot_cluster=True
+plot_cluster=True                           #not default
 parallel = False
 
 """Run the iSAX experiment
