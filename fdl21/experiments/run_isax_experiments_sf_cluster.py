@@ -858,68 +858,70 @@ if transliterate:
 
 component_dict_wand = {}
 # %% Clustering
-for component in ['x']: #just use x-component (for now)
-    nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
+# for component in ['x','y','z']:
+component = 'x' #just use x-component (for now)
+nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
 
-    ## Clustering
-    hdbscan_clusters, expected_val = cluster_function(
-        nodes_at_level,
-        min_cluster_size=min_cluster_size,
-        min_samples=min_samples,
-        cluster_selection_epsilon=cluster_selection_epsilon,
-        n_processes=n_processes
-    )
+## Clustering
+hdbscan_clusters, expected_val = cluster_function(
+    nodes_at_level,
+    min_cluster_size=min_cluster_size,
+    min_samples=min_samples,
+    cluster_selection_epsilon=cluster_selection_epsilon,
+    n_processes=n_processes
+)
 
 #%% unclustered nodes [new]
-    unclusetered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
+unclusetered_nodes = expected_val[hdbscan_clusters.labels_==-1,:]
 
 # %% 
-    if transliterate:
+if transliterate:
 
-        for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
-                                    desc=f'Transliterating nodes...'):
-            node_index = (hdbscan_clusters.labels_==cluster).nonzero()[0]
-            nodes = [nodes_at_level[i] for i in node_index]
+    for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
+                                desc=f'Transliterating nodes...'):
+        node_index = (hdbscan_clusters.labels_==cluster).nonzero()[0]
+        nodes = [nodes_at_level[i] for i in node_index]
 
-            for node in nodes:
+        for node in nodes:
 
-                annotations = node.get_annotations()
-                for key, value in annotations.items():
-                    component_annotations[component][key] += value
-                
-                component_annotations[component][f'cluster {component}'] += [cluster] * len(annotations['File'])        
-                component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
+            annotations = node.get_annotations()
+            for key, value in annotations.items():
+                component_annotations[component][key] += value
+            
+            component_annotations[component][f'cluster {component}'] += [cluster] * len(annotations['File'])        
+            component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
 
+# %% plot clusters
+pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
+if plot_cluster:
 
-    pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
-    if plot_cluster:
+    LOG.info('Plotting clusters ...')
+    pdf_c = PdfPages('runs/' + pdf_file_c)
 
-        LOG.info('Plotting clusters ...')
-        pdf_c = PdfPages('runs/' + pdf_file_c)
+    for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
+                                desc=f'Plotting nodes in {cluster} clusters...'):
 
-        for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
-                                    desc=f'Plotting nodes in {cluster} clusters...'):
+        fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                                    cache=cache,instrument=instrument, cache_folder=cache_folder)
+        pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
+        plt.close(fig_c)
 
-            fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
-                                        cache=cache,instrument=instrument, cache_folder=cache_folder)
-            pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
-            plt.close(fig_c)
+    pdf_c.close()
+    push_to_cloud(pdf_file_c, dirname=dirname + '_' + date_time, relative_folder='runs/')
 
-        pdf_c.close()
-        push_to_cloud(pdf_file_c, dirname=dirname + '_' + date_time, relative_folder='runs/')
-    
-    component_dict_wand[f'gsurl_c {component}']  = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{pdf_file_c}"  
+component_dict_wand[f'gsurl_c {component}']  = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{pdf_file_c}"  
+# %% plot tree
+LOG.info('Plotting tree...')
+tree_file = pdf_file + '_' + f'{component}' + '_tree'  + '.png'
+DotExporter(isax_pipe.sw_forest[component].forest[0].root).to_picture('runs/' + tree_file)
+push_to_cloud(tree_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
+component_dict_wand[f'gsurl_t {component}'] = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{tree_file}"
 
-    LOG.info('Plotting tree...')
-    tree_file = pdf_file + '_' + f'{component}' + '_tree'  + '.png'
-    DotExporter(isax_pipe.sw_forest[component].forest[0].root).to_picture('runs/' + tree_file)
-    push_to_cloud(tree_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
-    component_dict_wand[f'gsurl_t {component}'] = f"https://storage.cloud.google.com/isax-experiments-results/{dirname + '_' + date_time}/{tree_file}"
-
-    LOG.info('Plotting TSNE...')
-    cluster_file = pdf_file + '_' + f'{component}' + '_tsne'  + '.png'
-    component_dict_wand[f'TSNE {component}'] = plot_cluster_fig(hdbscan_clusters, expected_val, cluster_file='runs/' + cluster_file)
-    push_to_cloud(cluster_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
+LOG.info('Plotting TSNE...')
+cluster_file = pdf_file + '_' + f'{component}' + '_tsne'  + '.png'
+component_dict_wand[f'TSNE {component}'] = plot_cluster_fig(hdbscan_clusters, expected_val, cluster_file='runs/' + cluster_file)
+push_to_cloud(cluster_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
+# end of `for component in ['x','y','z']` for-loop
 
 transliteration_file = pdf_file + '_transliteration.csv'
 if transliterate:
