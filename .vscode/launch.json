@@ -45,6 +45,31 @@
         "-transliterate", 
         "-plot_cluster"
       ]
+    },
+    {
+      "name": "iSAX clustering iterations",
+      "type": "python",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "-word_size","4",
+        "-start_date", "2018-01-01",
+        "-stop_date", "2018-06-01",
+        "-min_cardinality","8",
+        "-max_cardinality","32",
+        "-cadence", "60",
+        "-chunk_size","3000",
+        "-smooth_window","18000",
+        "-detrend_window","3000",
+        "-instrument", "omni",
+        "-cache",
+        "-cache_folder", "/home/jasminekobayashi/isax_cache/",
+        "-transliterate", 
+        "-plot_cluster"
+      ]
     }
   ]
 }
