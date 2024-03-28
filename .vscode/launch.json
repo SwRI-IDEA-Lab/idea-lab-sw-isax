@@ -55,7 +55,7 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "args": [
-        "-word_size","4",
+        "-word_size","5",
         "-start_date", "2018-01-01",
         "-stop_date", "2018-06-01",
         "-min_cardinality","8",
@@ -68,7 +68,9 @@
         "-cache",
         "-cache_folder", "/home/jasminekobayashi/isax_cache/",
         "-transliterate", 
-        "-plot_cluster"
+        "-plot_cluster",
+        "-recluster",
+        "-set_largest_cluster_to_noncluster"
       ]
     }
   ]

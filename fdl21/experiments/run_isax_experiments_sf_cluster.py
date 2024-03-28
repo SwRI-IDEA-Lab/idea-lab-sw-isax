@@ -36,7 +36,9 @@ import wandb
 from anytree.exporter import DotExporter
 from anytree import PreOrderIter
 
-# # Native packages
+from copy import deepcopy
+
+# Native packages
 import fdl21.data.helper_funcs as hf
 import fdl21.isax_model as isax_model
 import fdl21.visualization.isax_visualization as isax_vis
@@ -220,6 +222,20 @@ parser.add_argument(
 parser.add_argument(
     '-parallel',
     help='Run parallel isax',
+    default=False,
+    action='store_true'
+)
+
+parser.add_argument(
+    '-recluster',
+    help='Run process to recluster the unclustered nodes',
+    default=False,
+    action='store_true'
+)
+
+parser.add_argument(
+    '-set_largest_cluster_to_noncluster',
+    help='Set the largest cluster to Cluster -1 ("unclustered")',
     default=False,
     action='store_true'
 )
@@ -545,6 +561,39 @@ def build_cache(
             instrument=instrument
         )
 
+def recluster_unclustered(reindexed_clusters,
+                          expected_val,
+                          min_cluster_size=5,
+                          min_samples=5,
+                          cluster_selection_epsilon=None,
+                          metric='euclidean'):
+    
+    # highest label number
+    max_cluster_label = np.max(reindexed_clusters.labels_)
+    
+    
+    # save mask identifying the indices where cluster label = -1 ("unclustered")
+    unclustered_mask = (reindexed_clusters.labels_==-1).nonzero()[0]      
+    # nodes in Cluster -1
+    unclustered_nodes = expected_val[unclustered_mask]
+    
+    # cluster
+    if cluster_selection_epsilon is None:
+        clusterer = hdbscan.HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, min_samples=min_samples)
+    else:
+        LOG.error("epsilon is no longer functional")
+        raise(NotImplementedError('epsilon not functional'))
+        
+    new_clusters = clusterer.fit(unclustered_nodes)
+
+    # indices of new clusters (NOT including Cluster -1)
+    clustered_new_clusters = new_clusters.labels_>-1 
+
+    # Update new cluster labels to original list of clusters
+    reindexed_clusters.labels_[unclustered_mask[clustered_new_clusters]] = new_clusters.labels_[clustered_new_clusters] + max_cluster_label+1
+    
+    return reindexed_clusters
+
 def run_experiment(
     input_file = None,
     start_date=dt.datetime(2018, 11, 21),
@@ -575,7 +624,9 @@ def run_experiment(
     n_processes=4,
     profiling=False,
     plot_cluster=False,
-    parallel = False
+    parallel = False,
+    recluster = False,
+    set_largest_cluster_to_noncluster = False
  ):
     """Run the iSAX experiment
 
@@ -855,7 +906,7 @@ def run_experiment(
 
         nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
 
-        ## Clustering
+        ## Clustering (first/original)
         hdbscan_clusters, expected_val = cluster_function(
             nodes_at_level,
             min_cluster_size=min_cluster_size,
@@ -864,11 +915,70 @@ def run_experiment(
             n_processes=n_processes
         )
 
+
+        ### recluster Cluster -1
+        if recluster:
+            # save copy so that 'original' hdbscan_clusters is unaffected
+            reindexed_clusters = deepcopy(hdbscan_clusters)
+            # mask of indices of clustered clusters (i.e. not including Cluster -1) in hdbscan_clusters
+            hdbscan_clusters_mask = (hdbscan_clusters.labels_!=-1).nonzero()[0] 
+
+            if set_largest_cluster_to_noncluster:
+                #===============================================================================
+                # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
+                # (i.e. averaged to a flat line centered on 0)
+                # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
+                # cluster to -1 (the 'unclustered' cluster)
+                #===============================================================================
+                
+                # highest label number
+                max_cluster_label = np.max(hdbscan_clusters.labels_)
+
+                # Label of the biggest cluster in hdbscan_clusters
+                largest_cluster_label = np.bincount(hdbscan_clusters.labels_[hdbscan_clusters_mask]).argmax()
+                
+                # Indices where hdbscan_cluster has label of largest cluster
+                large_cluster_mask = (hdbscan_clusters.labels_==largest_cluster_label).nonzero()[0]
+
+                # Re-label largest cluster to just be -1 ("unclustered")
+                reindexed_clusters.labels_[large_cluster_mask] = -1
+
+                if largest_cluster_label < max_cluster_label:
+                    #==========================================================================
+                    # if the largest cluster is not the last cluster,
+                    # we need to rename the cluster labels after largest_cluster_label
+                    # Ideally, in a way such that labels after reclustering can just be
+                    # 'appended' to original list of clusters.
+
+                    # Example: if largest_cluster_label = 15, and there are 20 total clusters,
+                    # relabel cluster 16 to cluster 15, etc.
+                    #==========================================================================
+                    for i in range(largest_cluster_label,max_cluster_label):
+                        current_label = i+1
+                        new_label = i
+
+                        mask = (reindexed_clusters.labels_==current_label).nonzero()[0]
+
+                        reindexed_clusters.labels_[mask] = new_label
+
+
+            # recluster
+            reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                                                         expected_val=expected_val,
+                                                         min_cluster_size=min_cluster_size,
+                                                         min_samples=min_samples,
+                                                         cluster_selection_epsilon=cluster_selection_epsilon)
+            
+            clusters = reclustered_clusters
+        
+        else:
+            clusters = hdbscan_clusters
+
         if transliterate:
 
-            for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
+            for cluster_n in tqdm(np.arange(np.min(clusters.labels_), np.max(clusters.labels_)+1), 
                                         desc=f'Transliterating nodes...'):
-                node_index = (hdbscan_clusters.labels_==cluster).nonzero()[0]
+                node_index = (clusters.labels_==cluster_n).nonzero()[0]
                 nodes = [nodes_at_level[i] for i in node_index]
 
                 for node in nodes:
@@ -877,7 +987,7 @@ def run_experiment(
                     for key, value in annotations.items():
                         component_annotations[component][key] += value
                     
-                    component_annotations[component][f'cluster {component}'] += [cluster] * len(annotations['File'])        
+                    component_annotations[component][f'cluster {component}'] += [cluster_n] * len(annotations['File'])        
                     component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
 
 
@@ -887,10 +997,10 @@ def run_experiment(
             LOG.info('Plotting clusters ...')
             pdf_c = PdfPages('runs/' + pdf_file_c)
 
-            for cluster in tqdm(np.arange(np.min(hdbscan_clusters.labels_), np.max(hdbscan_clusters.labels_)+1), 
-                                        desc=f'Plotting nodes in {cluster} clusters...'):
+            for cluster_n in tqdm(np.arange(np.min(clusters.labels_), np.max(clusters.labels_)+1), 
+                                        desc=f'Plotting nodes in {cluster_n} clusters...'):
 
-                fig_c = plot_cluster_curves(cluster, hdbscan_clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                fig_c = plot_cluster_curves(cluster_n, clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
                                             cache=cache,instrument=instrument, cache_folder=cache_folder)
                 pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
                 plt.close(fig_c)
@@ -908,7 +1018,7 @@ def run_experiment(
 
         LOG.info('Plotting TSNE...')
         cluster_file = pdf_file + '_' + f'{component}' + '_tsne'  + '.png'
-        component_dict_wand[f'TSNE {component}'] = plot_cluster_fig(hdbscan_clusters, expected_val, cluster_file='runs/' + cluster_file)
+        component_dict_wand[f'TSNE {component}'] = plot_cluster_fig(clusters, expected_val, cluster_file='runs/' + cluster_file)
         push_to_cloud(cluster_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
 
     transliteration_file = pdf_file + '_transliteration.csv'
@@ -970,7 +1080,7 @@ def run_experiment(
             min_samples,
             min_cluster_size,
             cluster_selection_epsilon,
-            np.max(hdbscan_clusters.labels_) + 1,
+            np.max(clusters.labels_) + 1,
             wandb.Image(component_dict_wand['TSNE x']),
             wandb.Image(component_dict_wand['TSNE y']),
             wandb.Image(component_dict_wand['TSNE z']),
