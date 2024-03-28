@@ -926,9 +926,10 @@ def run_experiment(
             if set_largest_cluster_to_noncluster:
                 #===============================================================================
                 # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
-                # (i.e. averaged to a flat line centered on 0)
+                # (i.e. cluster averages to a flat line centered on 0, but segments still appear
+                # to have potential to be clustered with other patterns)
                 # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
-                # cluster to -1 (the 'unclustered' cluster)
+                # cluster to -1 (the "unclustered" cluster)
                 #===============================================================================
                 
                 # highest label number
