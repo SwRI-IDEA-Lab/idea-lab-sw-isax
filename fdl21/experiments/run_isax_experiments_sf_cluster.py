@@ -316,6 +316,45 @@ def cluster_function(
     clusterer.fit(expected_val)
     return clusterer, expected_val
 
+def recluster_unclustered(reindexed_clusters,
+                          expected_val,
+                          min_cluster_size=5,
+                          min_samples=5,
+                          cluster_selection_epsilon=None,
+                          metric='euclidean'):
+    """Function to recluster Cluster -1 (unclustered cluster) built from cluster_function()
+    
+    Parameters
+    ----------
+    reindexed_clusters : object
+        hdbscan cluster object
+    TODO: add parameters and descriptions
+    """
+    # highest label number
+    max_cluster_label = np.max(reindexed_clusters.labels_)
+    
+    
+    # save mask identifying the indices where cluster label = -1 ("unclustered")
+    unclustered_mask = (reindexed_clusters.labels_==-1).nonzero()[0]      
+    # nodes in Cluster -1
+    unclustered_nodes = expected_val[unclustered_mask]
+    
+    # cluster
+    if cluster_selection_epsilon is None:
+        clusterer = hdbscan.HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, min_samples=min_samples)
+    else:
+        LOG.error("epsilon is no longer functional")
+        raise(NotImplementedError('epsilon not functional'))
+        
+    new_clusters = clusterer.fit(unclustered_nodes)
+
+    # indices of new clusters (NOT including Cluster -1)
+    clustered_new_clusters = new_clusters.labels_>-1 
+
+    # Update new cluster labels to original list of clusters
+    reindexed_clusters.labels_[unclustered_mask[clustered_new_clusters]] = new_clusters.labels_[clustered_new_clusters] + max_cluster_label+1
+    
+    return reindexed_clusters
 
 def plot_cluster_curves(cluster, 
                         clusterer, 
@@ -560,46 +599,6 @@ def build_cache(
             cache_folder=cache_folder,
             instrument=instrument
         )
-
-def recluster_unclustered(reindexed_clusters,
-                          expected_val,
-                          min_cluster_size=5,
-                          min_samples=5,
-                          cluster_selection_epsilon=None,
-                          metric='euclidean'):
-    """Function to recluster Cluster -1 (unclustered cluster) built from cluster_function()
-    
-    Parameters
-    ----------
-    reindexed_clusters : object
-        hdbscan cluster object
-    TODO: add parameters and descriptions
-    """
-    # highest label number
-    max_cluster_label = np.max(reindexed_clusters.labels_)
-    
-    
-    # save mask identifying the indices where cluster label = -1 ("unclustered")
-    unclustered_mask = (reindexed_clusters.labels_==-1).nonzero()[0]      
-    # nodes in Cluster -1
-    unclustered_nodes = expected_val[unclustered_mask]
-    
-    # cluster
-    if cluster_selection_epsilon is None:
-        clusterer = hdbscan.HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, min_samples=min_samples)
-    else:
-        LOG.error("epsilon is no longer functional")
-        raise(NotImplementedError('epsilon not functional'))
-        
-    new_clusters = clusterer.fit(unclustered_nodes)
-
-    # indices of new clusters (NOT including Cluster -1)
-    clustered_new_clusters = new_clusters.labels_>-1 
-
-    # Update new cluster labels to original list of clusters
-    reindexed_clusters.labels_[unclustered_mask[clustered_new_clusters]] = new_clusters.labels_[clustered_new_clusters] + max_cluster_label+1
-    
-    return reindexed_clusters
 
 def run_experiment(
     input_file = None,
