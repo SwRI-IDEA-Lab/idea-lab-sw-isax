@@ -567,7 +567,14 @@ def recluster_unclustered(reindexed_clusters,
                           min_samples=5,
                           cluster_selection_epsilon=None,
                           metric='euclidean'):
+    """Function to recluster Cluster -1 (unclustered cluster) built from cluster_function()
     
+    Parameters
+    ----------
+    reindexed_clusters : object
+        hdbscan cluster object
+    TODO: add parameters and descriptions
+    """
     # highest label number
     max_cluster_label = np.max(reindexed_clusters.labels_)
     
@@ -946,13 +953,14 @@ def run_experiment(
 
                 if largest_cluster_label < max_cluster_label:
                     #==========================================================================
-                    # if the largest cluster is not the last cluster,
-                    # we need to rename the cluster labels after largest_cluster_label
-                    # Ideally, in a way such that labels after reclustering can just be
+                    # if the largest cluster is not the last cluster, (since code doesn't allow
+                    # empty clusters) we need to rename the cluster labels after
+                    # largest_cluster_label
+                    # Ideally, in a way such that labels from reclustering can just be
                     # 'appended' to original list of clusters.
 
                     # Example: if largest_cluster_label = 15, and there are 20 total clusters,
-                    # relabel cluster 16 to cluster 15, etc.
+                    # relabel cluster 16 to cluster 15, ..., cluster 20 to 19, etc.
                     #==========================================================================
                     for i in range(largest_cluster_label,max_cluster_label):
                         current_label = i+1
