@@ -227,10 +227,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-recluster',
-    help='Run process to recluster the unclustered nodes',
-    default=False,
-    action='store_true'
+    '-recluster_iterations',
+    default=0,
+    help='Number of reclustering iterations',
+    type=int
 )
 
 parser.add_argument(
@@ -631,7 +631,7 @@ def run_experiment(
     profiling=False,
     plot_cluster=False,
     parallel = False,
-    recluster = False,
+    recluster_iterations = 0,
     set_largest_cluster_to_noncluster = False
  ):
     """Run the iSAX experiment
@@ -689,7 +689,7 @@ def run_experiment(
 
 
     run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
-    pdf_file = run_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
+    pdf_file = run_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_RI{recluster_iterations}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
     cache_folder =  cache_folder + run_prefix + '/'
     v = isax_vis.iSaxVisualizer()
     
@@ -923,60 +923,61 @@ def run_experiment(
 
 
         ### recluster Cluster -1
-        if recluster:
-            # save copy so that 'original' hdbscan_clusters is unaffected
+        if recluster_iterations > 0:
+            # start with copy so that 'original' hdbscan_clusters is unaffected
             reindexed_clusters = deepcopy(hdbscan_clusters)
-            # mask of indices of clustered clusters (i.e. not including Cluster -1) in hdbscan_clusters
-            hdbscan_clusters_mask = (hdbscan_clusters.labels_!=-1).nonzero()[0] 
 
-            if set_largest_cluster_to_noncluster:
-                #===============================================================================
-                # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
-                # (i.e. cluster averages to a flat line centered on 0, but segments still appear
-                # to have potential to be clustered with other patterns)
-                # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
-                # cluster to -1 (the "unclustered" cluster)
-                #===============================================================================
+            for _ in range(recluster_iterations):
+                # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
+                reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
+                if set_largest_cluster_to_noncluster:
+                    #===============================================================================
+                    # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
+                    # (i.e. cluster averages to a flat line centered on 0, but segments still appear
+                    # to have potential to be clustered with other patterns)
+                    # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
+                    # cluster to -1 (the "unclustered" cluster)
+                    #===============================================================================
+                    
+                    # highest label number
+                    max_cluster_label = np.max(reindexed_clusters.labels_)
+
+                    # Label of the biggest cluster in reindexed_clusters
+                    largest_cluster_label = np.bincount(reindexed_clusters.labels_[reindexed_clusters_mask]).argmax()
+                    
+                    # Indices where reindexed_cluster has label of largest cluster
+                    large_cluster_mask = (reindexed_clusters.labels_==largest_cluster_label).nonzero()[0]
+
+                    # Re-label largest cluster to just be -1 ("unclustered")
+                    reindexed_clusters.labels_[large_cluster_mask] = -1
+
+                    if largest_cluster_label < max_cluster_label:
+                        #==========================================================================
+                        # if the largest cluster is not the last cluster, (since code doesn't allow
+                        # empty clusters) we need to rename the cluster labels after
+                        # largest_cluster_label
+                        # Ideally, in a way such that labels from reclustering can just be
+                        # 'appended' to original list of clusters.
+
+                        # Example: if largest_cluster_label = 15, and there are 20 total clusters,
+                        # relabel cluster 16 to cluster 15, ..., cluster 20 to 19, etc.
+                        #==========================================================================
+                        for i in range(largest_cluster_label,max_cluster_label):
+                            current_label = i+1
+                            new_label = i
+
+                            mask = (reindexed_clusters.labels_==current_label).nonzero()[0]
+
+                            reindexed_clusters.labels_[mask] = new_label
+
+
+                # recluster
+                reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                                                            expected_val=expected_val,
+                                                            min_cluster_size=min_cluster_size,
+                                                            min_samples=min_samples,
+                                                            cluster_selection_epsilon=cluster_selection_epsilon)
                 
-                # highest label number
-                max_cluster_label = np.max(hdbscan_clusters.labels_)
-
-                # Label of the biggest cluster in hdbscan_clusters
-                largest_cluster_label = np.bincount(hdbscan_clusters.labels_[hdbscan_clusters_mask]).argmax()
-                
-                # Indices where hdbscan_cluster has label of largest cluster
-                large_cluster_mask = (hdbscan_clusters.labels_==largest_cluster_label).nonzero()[0]
-
-                # Re-label largest cluster to just be -1 ("unclustered")
-                reindexed_clusters.labels_[large_cluster_mask] = -1
-
-                if largest_cluster_label < max_cluster_label:
-                    #==========================================================================
-                    # if the largest cluster is not the last cluster, (since code doesn't allow
-                    # empty clusters) we need to rename the cluster labels after
-                    # largest_cluster_label
-                    # Ideally, in a way such that labels from reclustering can just be
-                    # 'appended' to original list of clusters.
-
-                    # Example: if largest_cluster_label = 15, and there are 20 total clusters,
-                    # relabel cluster 16 to cluster 15, ..., cluster 20 to 19, etc.
-                    #==========================================================================
-                    for i in range(largest_cluster_label,max_cluster_label):
-                        current_label = i+1
-                        new_label = i
-
-                        mask = (reindexed_clusters.labels_==current_label).nonzero()[0]
-
-                        reindexed_clusters.labels_[mask] = new_label
-
-
-            # recluster
-            reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
-                                                         expected_val=expected_val,
-                                                         min_cluster_size=min_cluster_size,
-                                                         min_samples=min_samples,
-                                                         cluster_selection_epsilon=cluster_selection_epsilon)
-            
             clusters = reclustered_clusters
         
         else:
