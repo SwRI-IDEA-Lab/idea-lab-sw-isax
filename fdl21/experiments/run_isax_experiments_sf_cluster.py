@@ -316,12 +316,13 @@ def cluster_function(
     clusterer.fit(expected_val)
     return clusterer, expected_val
 
-def recluster_unclustered(reindexed_clusters,
+def recluster_unclustered(original_clusters,
                           expected_val,
                           min_cluster_size=5,
                           min_samples=5,
                           cluster_selection_epsilon=None,
-                          metric='euclidean'):
+                          metric='euclidean',
+                          set_largest_cluster_to_noncluster=False):
     """Function to recluster Cluster -1 (unclustered cluster) built from cluster_function()
     
     Parameters
@@ -330,9 +331,55 @@ def recluster_unclustered(reindexed_clusters,
         hdbscan cluster object
     TODO: add parameters and descriptions
     """
+    
+    # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling
+    reindexed_clusters = deepcopy(original_clusters)
+
+    # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
+    reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
+
+    if set_largest_cluster_to_noncluster:
+        #===============================================================================
+        # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
+        # (i.e. cluster averages to a flat line centered on 0, but segments still appear
+        # to have potential to be clustered with other patterns)
+        # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
+        # cluster to -1 (the "unclustered" cluster)
+        #===============================================================================
+        
+        # label of "last" cluster (highest label number)
+        last_cluster_label = np.max(reindexed_clusters.labels_)
+
+        # Label of the biggest cluster in reindexed_clusters
+        largest_cluster_label = np.bincount(reindexed_clusters.labels_[reindexed_clusters_mask]).argmax()
+        
+        # Indices where reindexed_cluster has label of largest cluster
+        large_cluster_mask = (reindexed_clusters.labels_==largest_cluster_label).nonzero()[0]
+
+        # Re-label largest cluster to just be -1 ("unclustered")
+        reindexed_clusters.labels_[large_cluster_mask] = -1
+
+        if largest_cluster_label < last_cluster_label:
+            #==========================================================================
+            # if the largest cluster is not the last cluster, (since code doesn't allow
+            # empty clusters) we need to rename the cluster labels after
+            # largest_cluster_label
+            # Ideally, in a way such that labels from reclustering can just be
+            # 'appended' to original list of clusters.
+
+            # Example: if largest_cluster_label = 15, and there are 20 total clusters,
+            # relabel cluster 16 to cluster 15, ..., cluster 20 to 19, etc.
+            #==========================================================================
+            for i in range(largest_cluster_label,last_cluster_label):
+                current_label = i+1
+                new_label = i
+
+                old_label_mask = (reindexed_clusters.labels_==current_label).nonzero()[0]
+
+                reindexed_clusters.labels_[old_label_mask] = new_label
+    
     # highest label number
     max_cluster_label = np.max(reindexed_clusters.labels_)
-    
     
     # save mask identifying the indices where cluster label = -1 ("unclustered")
     unclustered_mask = (reindexed_clusters.labels_==-1).nonzero()[0]      
@@ -924,62 +971,16 @@ def run_experiment(
 
         ### recluster Cluster -1
         if recluster_iterations > 0:
-            # start with copy so that 'original' hdbscan_clusters is unaffected
-            reindexed_clusters = deepcopy(hdbscan_clusters)
-
             for _ in range(recluster_iterations):
-                # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
-                reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
-                if set_largest_cluster_to_noncluster:
-                    #===============================================================================
-                    # Sometimes the largest cluster in hdbscan_clusters is not very meaningful
-                    # (i.e. cluster averages to a flat line centered on 0, but segments still appear
-                    # to have potential to be clustered with other patterns)
-                    # So if set_largest_cluster_to_noncluster is set to true, we will relabel that
-                    # cluster to -1 (the "unclustered" cluster)
-                    #===============================================================================
-                    
-                    # highest label number
-                    max_cluster_label = np.max(reindexed_clusters.labels_)
-
-                    # Label of the biggest cluster in reindexed_clusters
-                    largest_cluster_label = np.bincount(reindexed_clusters.labels_[reindexed_clusters_mask]).argmax()
-                    
-                    # Indices where reindexed_cluster has label of largest cluster
-                    large_cluster_mask = (reindexed_clusters.labels_==largest_cluster_label).nonzero()[0]
-
-                    # Re-label largest cluster to just be -1 ("unclustered")
-                    reindexed_clusters.labels_[large_cluster_mask] = -1
-
-                    if largest_cluster_label < max_cluster_label:
-                        #==========================================================================
-                        # if the largest cluster is not the last cluster, (since code doesn't allow
-                        # empty clusters) we need to rename the cluster labels after
-                        # largest_cluster_label
-                        # Ideally, in a way such that labels from reclustering can just be
-                        # 'appended' to original list of clusters.
-
-                        # Example: if largest_cluster_label = 15, and there are 20 total clusters,
-                        # relabel cluster 16 to cluster 15, ..., cluster 20 to 19, etc.
-                        #==========================================================================
-                        for i in range(largest_cluster_label,max_cluster_label):
-                            current_label = i+1
-                            new_label = i
-
-                            mask = (reindexed_clusters.labels_==current_label).nonzero()[0]
-
-                            reindexed_clusters.labels_[mask] = new_label
-
-
                 # recluster
-                reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                reclustered_clusters = recluster_unclustered(original_clusters=hdbscan_clusters,
                                                             expected_val=expected_val,
                                                             min_cluster_size=min_cluster_size,
                                                             min_samples=min_samples,
-                                                            cluster_selection_epsilon=cluster_selection_epsilon)
+                                                            cluster_selection_epsilon=cluster_selection_epsilon,
+                                                            set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
             clusters = reclustered_clusters
-        
         else:
             clusters = hdbscan_clusters
 
