@@ -401,6 +401,7 @@ def recluster_unclustered(reindexed_clusters,
     return reindexed_clusters
 
 def plot_cluster_curves(cluster, 
+                        ri_label,
                         clusterer, 
                         component, 
                         node_level_depth,
@@ -494,7 +495,7 @@ def plot_cluster_curves(cluster,
     ax[1].set_ylim(ax[0].get_ylim())
     ax[1].legend(legend_artists, node_names, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=2, frameon=False)
 
-    fig.suptitle(f'Cluster {cluster}, N={n_sequences}', y=0.9, va='bottom')
+    fig.suptitle(f'Cluster {cluster}, cluster iteration={ri_label}, N={n_sequences}', y=0.9, va='bottom')
 
     return fig
 
@@ -970,7 +971,9 @@ def run_experiment(
         if recluster_iterations > 0:
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
-            for _ in range(recluster_iterations):
+            RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
+            for i in range(recluster_iterations):
+                last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 # recluster
                 reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
                                                             expected_val=expected_val,
@@ -979,9 +982,20 @@ def run_experiment(
                                                             cluster_selection_epsilon=cluster_selection_epsilon,
                                                             set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
+                last_cluster_label_after = np.max(reindexed_clusters.labels_)
+                # number of new clusters
+                n_new_clusters = last_cluster_label_after - last_cluster_label_before
+
+                # Update RI_label
+                iteration_label = i+1
+                if set_largest_cluster_to_noncluster:
+                    RI_label[-1] = iteration_label
+                RI_label = RI_label + [iteration_label]*n_new_clusters
+
             clusters = reclustered_clusters
         else:
             clusters = hdbscan_clusters
+            RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
 
         if transliterate:
 
@@ -1009,7 +1023,7 @@ def run_experiment(
             for cluster_n in tqdm(np.arange(np.min(clusters.labels_), np.max(clusters.labels_)+1), 
                                         desc=f'Plotting nodes in {cluster_n} clusters...'):
 
-                fig_c = plot_cluster_curves(cluster_n, clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                fig_c = plot_cluster_curves(cluster_n,RI_label[cluster_n], clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
                                             cache=cache,instrument=instrument, cache_folder=cache_folder)
                 pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
                 plt.close(fig_c)
