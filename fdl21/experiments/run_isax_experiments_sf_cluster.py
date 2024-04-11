@@ -316,7 +316,7 @@ def cluster_function(
     clusterer.fit(expected_val)
     return clusterer, expected_val
 
-def recluster_unclustered(original_clusters,
+def recluster_unclustered(reindexed_clusters,
                           expected_val,
                           min_cluster_size=5,
                           min_samples=5,
@@ -332,9 +332,6 @@ def recluster_unclustered(original_clusters,
     TODO: add parameters and descriptions
     """
     
-    # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling
-    reindexed_clusters = deepcopy(original_clusters)
-
     # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
     reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
 
@@ -971,9 +968,11 @@ def run_experiment(
 
         ### recluster Cluster -1
         if recluster_iterations > 0:
+            # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
+            reindexed_clusters = deepcopy(hdbscan_clusters)
             for _ in range(recluster_iterations):
                 # recluster
-                reclustered_clusters = recluster_unclustered(original_clusters=hdbscan_clusters,
+                reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
                                                             expected_val=expected_val,
                                                             min_cluster_size=min_cluster_size,
                                                             min_samples=min_samples,
