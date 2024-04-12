@@ -977,7 +977,7 @@ def run_experiment(
                 # save label of last cluster before reclustering
                 last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 # recluster
-                reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
                                                             expected_val=expected_val,
                                                             min_cluster_size=min_cluster_size,
                                                             min_samples=min_samples,
@@ -990,12 +990,71 @@ def run_experiment(
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
                 # Update RI_label
+                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
                 iteration_label = i+1
                 if set_largest_cluster_to_noncluster:
                     RI_label[-1] = iteration_label
                 RI_label = RI_label + [iteration_label]*n_new_clusters
 
-            clusters = reclustered_clusters
+            clusters = reindexed_clusters
+        elif recluster_iterations == -1:   # Automate reclustering iterations to find where reclustering stabilizes
+            # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
+            reindexed_clusters = deepcopy(hdbscan_clusters)
+            conditions = [False,False]
+            iteration_label = 0
+            while not np.all(conditions) and iteration_label < 1000:
+
+                # save label and indices of last cluster before reclustering
+                last_cluster_label_before = np.unique(reindexed_clusters.labels_)[-1]
+                before_mask = (reindexed_clusters.labels_==last_cluster_label_before).nonzero()[0]
+                # recluster
+                reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                                                            expected_val=expected_val,
+                                                            min_cluster_size=min_cluster_size,
+                                                            min_samples=min_samples,
+                                                            cluster_selection_epsilon=cluster_selection_epsilon,
+                                                            set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
+                
+                # save label and indices of last cluster after reclustering
+                last_cluster_label_after = np.unique(reindexed_clusters.labels_)[-1]
+                after_mask = (reindexed_clusters.labels_==last_cluster_label_after).nonzero()[0]
+                # calculate number of new clusters
+                n_new_clusters = last_cluster_label_after - last_cluster_label_before
+
+                # Update RI_label
+                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
+                iteration_label += 1
+                if set_largest_cluster_to_noncluster:
+                    RI_label[-1] = iteration_label
+                RI_label = RI_label + [iteration_label]*n_new_clusters
+
+                # Conditions for finding point of stability====================================
+                # There were two behaviors I noticed when reclustering iterations started stabilizing:
+                # (ONLY if set_largest_cluster_to_noncluster = True)
+                # TODO: check if conditions are same if set_largest_cluster_to_noncluster = False
+                # 1. The maximum number of clusters started oscillating between max and max-1 
+                # (example: iteration 21 had 85 clusters, iteration 22 had 84 clusters, and 
+                # iteration 23 had 85 clusters again)
+                # 2. The nodes in the last cluster of max clusters matched the nodes in last cluster of two iterations before
+                # (i.e. after the oscillating number of clusters, cluster 90 from iteration 34 matched nodes in 
+                # cluster 90 in iteration 32)
+                # ==============================================================================
+                # check conditions for finding stability
+                if last_cluster_label_before > last_cluster_label_after:
+                    conditions[0] = True
+                    saved_before_label = last_cluster_label_before
+                    saved_before_nodes = expected_val[before_mask]
+                
+                # if first condition is met, check second condition
+                if conditions[0] and last_cluster_label_after == saved_before_label:
+                    # check nodes
+                    nodes_after_recluster = expected_val[after_mask]
+                    if np.allclose(saved_before_nodes.shape,nodes_after_recluster.shape):
+                        if np.allclose(saved_before_nodes,nodes_after_recluster):
+                            conditions[1] = True
+
+            
+            clusters = reindexed_clusters
         else:
             clusters = hdbscan_clusters
 
