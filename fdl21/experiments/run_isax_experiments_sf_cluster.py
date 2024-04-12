@@ -965,14 +965,13 @@ def run_experiment(
             cluster_selection_epsilon=cluster_selection_epsilon,
             n_processes=n_processes
         )
-
+        # (re)clustering iteration labels (hdbscan_clusters are all iteration = 0)
+        RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
 
         ### recluster Cluster -1
         if recluster_iterations > 0:
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
-            # (re)clustering iteration labels
-            RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
 
             for i in range(recluster_iterations):
                 # save label of last cluster before reclustering
@@ -999,7 +998,6 @@ def run_experiment(
             clusters = reclustered_clusters
         else:
             clusters = hdbscan_clusters
-            RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
 
         if transliterate:
 
