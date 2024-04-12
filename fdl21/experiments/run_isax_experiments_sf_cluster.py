@@ -971,8 +971,11 @@ def run_experiment(
         if recluster_iterations > 0:
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
+            # (re)clustering iteration labels
             RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
+
             for i in range(recluster_iterations):
+                # save label of last cluster before reclustering
                 last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 # recluster
                 reclustered_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
@@ -982,8 +985,9 @@ def run_experiment(
                                                             cluster_selection_epsilon=cluster_selection_epsilon,
                                                             set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
+                # save label of last cluster after reclustering
                 last_cluster_label_after = np.max(reindexed_clusters.labels_)
-                # number of new clusters
+                # calculate number of new clusters
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
                 # Update RI_label
