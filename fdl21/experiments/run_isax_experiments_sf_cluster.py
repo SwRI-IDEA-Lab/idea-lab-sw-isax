@@ -1005,7 +1005,7 @@ def run_experiment(
             while not np.all(conditions) and iteration_label < 1000:
 
                 # save label and indices of last cluster before reclustering
-                last_cluster_label_before = np.unique(reindexed_clusters.labels_)[-1]
+                last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 before_mask = (reindexed_clusters.labels_==last_cluster_label_before).nonzero()[0]
                 # recluster
                 reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
@@ -1016,7 +1016,7 @@ def run_experiment(
                                                             set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
                 # save label and indices of last cluster after reclustering
-                last_cluster_label_after = np.unique(reindexed_clusters.labels_)[-1]
+                last_cluster_label_after = np.max(reindexed_clusters.labels_)
                 after_mask = (reindexed_clusters.labels_==last_cluster_label_after).nonzero()[0]
                 # calculate number of new clusters
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
