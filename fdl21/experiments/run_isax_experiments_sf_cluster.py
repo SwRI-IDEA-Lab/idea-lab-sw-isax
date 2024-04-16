@@ -997,7 +997,12 @@ def run_experiment(
                 RI_label = RI_label + [iteration_label]*n_new_clusters
 
             clusters = reindexed_clusters
-        elif recluster_iterations == -1:   # Automate reclustering iterations to find where reclustering stabilizes
+        elif set_largest_cluster_to_noncluster and recluster_iterations == -1:   
+            # -------------------------------------------------------------------------------
+            # Automate reclustering iterations to find where reclustering stabilizes.
+            # For now, only runs if set_largest_cluster_to_noncluster = True.
+            # TODO: check if conditions are same if set_largest_cluster_to_noncluster = False
+            #---------------------------------------------------------------------------------
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
             conditions = [False,False]
@@ -1031,7 +1036,6 @@ def run_experiment(
                 # Conditions for finding point of stability====================================
                 # There were two behaviors I noticed when reclustering iterations started stabilizing:
                 # (ONLY if set_largest_cluster_to_noncluster = True)
-                # TODO: check if conditions are same if set_largest_cluster_to_noncluster = False
                 # 1. The maximum number of clusters started oscillating between max and max-1 
                 # (example: iteration 21 had 85 clusters, iteration 22 had 84 clusters, and 
                 # iteration 23 had 85 clusters again)
