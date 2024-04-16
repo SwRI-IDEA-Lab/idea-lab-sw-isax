@@ -66,12 +66,12 @@
         "-detrend_window","3000",
         "-instrument", "omni",
         "-cache",
-        "-min_samples","1",
-        "-min_cluster_size","20",
+        "-min_samples","3",
+        "-min_cluster_size","10",
         "-cache_folder", "/home/jasminekobayashi/isax_cache/",
         "-transliterate", 
         "-plot_cluster",
-        "-recluster_iterations","2",
+        "-recluster_iterations","-1",
         "-set_largest_cluster_to_noncluster"
       ]
     }
