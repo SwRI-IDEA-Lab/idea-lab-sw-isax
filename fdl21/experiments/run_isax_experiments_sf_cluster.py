@@ -144,6 +144,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '-std_y',
+    default=3.4,
+    help='standard deviation of y. Defaults to 3.4',
+    type=float
+)
+
+parser.add_argument(
     '-overlap',
     default=0,
     help='Overlap used in chunking in seconds',
@@ -630,7 +637,7 @@ def build_cache(
         instrument=instrument
     )
 
-    return isax_pipe_dummy.build_cache(
+    isax_pipe_dummy.build_cache(
             file=file,
             cadence=cadence,
             chunk_size=chunk_size,
@@ -644,6 +651,8 @@ def build_cache(
             cache_folder=cache_folder,
             instrument=instrument
         )
+
+    return isax_pipe_dummy.min_max
 
 def run_experiment(
     input_file = None,
@@ -744,7 +753,7 @@ def run_experiment(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1994_2023.csv'
+        catalog_fname = 'omni_master_catalog_2017_2019.csv'
 
     # Orbit file
     if instrument == 'omni':
@@ -808,7 +817,7 @@ def run_experiment(
         chunksize = int(np.ceil(len(flist_mp)/n_processes))
         if chunksize < 4:
             chunksize=1        
-        process_map(build_cache,
+        min_max = process_map(build_cache,
                     flist_mp,
                     cadence_mp,
                     chunk_size_mp,
@@ -850,7 +859,9 @@ def run_experiment(
                         detrend_window=detrend_window,
                         optimized=True,
                         cache_folder=cache_folder,
-                        instrument=instrument
+                        instrument=instrument,
+                        min_max = min_max[0],
+                        n_bins = 1000
                     )
                     # good_files.append(True)
                 except:

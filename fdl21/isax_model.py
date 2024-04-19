@@ -154,6 +154,7 @@ class iSaxPipeline(object):
             date_fmt
         )
         self.hist = None
+        self.min_max = None
         self._sw_forest = {'x': None, 'y': None, 'z': None, 'all': None}
         self._threshold = threshold
         self._ts = {'x': None, 'y': None, 'z': None, 'all': None}
@@ -783,8 +784,10 @@ class iSaxPipeline(object):
         detrend=True,
         detrend_window=dt.timedelta(seconds=1800),
         optimized = True,
-        hist_max=50,
-        bin_width=0.1,
+        min_max={'x':{'min':-50, 'max':50},
+                'y':{'min':-50, 'max':50},
+                'z':{'min':-50, 'max':50}},
+        n_bins=1000,
         cache_folder='/cache/',
         instrument='psp'      
     ):
@@ -838,12 +841,22 @@ class iSaxPipeline(object):
         try:
 
             self._paa = PiecewiseAggregateApproximation(self.word_size)
-            self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
+            self.bins = {}
+            for component in ['x', 'y', 'z']:
+                bin_min = min_max[component]['min']
+                bin_max = min_max[component]['min']
+                bin_width = (bin_max - bin_min)/(n_bins+1)               
+                self.bins[component] = np.arange(bin_min,bin_max+2*bin_width,bin_width)-bin_width/2
             
             if self.hist is None:
                 self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
                             'y': np.zeros((self.bins.shape[0]-1)),      
                             'z': np.zeros((self.bins.shape[0]-1))}
+
+            if self.min_max is None:
+                self.min_max = {'x':{'min':None, 'max':None},
+                                'y':{'min':None, 'max':None},
+                                'z':{'min':None, 'max':None}}
 
             # update the dictionary with out input parameters
             self.input_parameters['rads_norm'] = rads_norm
@@ -905,8 +918,18 @@ class iSaxPipeline(object):
 
             # Calculate Histogram
             for component in ['x', 'y', 'z']:
-                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins)
+                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins[component])
                 self.hist[component] += hist
+
+                if self.min_max[component]['min'] is None:
+                    self.min_max[component]['min'] = np.min(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))
+                else:
+                    self.min_max[component]['min'] = np.min([self.min_max[component]['min'], np.min(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))])
+
+                if self.min_max[component]['max'] is None:
+                    self.min_max[component]['max'] = np.max(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))
+                else:
+                    self.min_max[component]['max'] = np.max([self.min_max[component]['max'], np.max(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))])
 
             return True
 
