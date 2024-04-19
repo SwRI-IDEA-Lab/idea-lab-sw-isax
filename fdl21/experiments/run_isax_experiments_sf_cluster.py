@@ -144,13 +144,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-std_y',
-    default=3.4,
-    help='standard deviation of y. Defaults to 3.4',
-    type=float
-)
-
-parser.add_argument(
     '-overlap',
     default=0,
     help='Overlap used in chunking in seconds',
