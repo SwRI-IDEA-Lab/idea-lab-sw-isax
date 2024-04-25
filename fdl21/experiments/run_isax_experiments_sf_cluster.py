@@ -867,10 +867,11 @@ def run_experiment(
                     hist = isax_pipe.hist) 
 
         LOG.info('Recalculating mean and standard deviations.')
-        bins = isax_pipe.bins
-        delta = np.nanmedian(bins[1:]-bins[0:-1])
-        centers = (bins[1:]+bins[0:-1])/2
+        
         for component in ['x', 'y', 'z']:
+            bins = isax_pipe.bins[component]
+            delta = np.nanmedian(bins[1:]-bins[0:-1])
+            centers = (bins[1:]+bins[0:-1])/2
             hist = isax_pipe.hist[component]
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
