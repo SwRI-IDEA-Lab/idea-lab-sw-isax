@@ -844,14 +844,14 @@ class iSaxPipeline(object):
             self.bins = {}
             for component in ['x', 'y', 'z']:
                 bin_min = min_max[component]['min']
-                bin_max = min_max[component]['min']
+                bin_max = min_max[component]['max']
                 bin_width = (bin_max - bin_min)/(n_bins+1)               
                 self.bins[component] = np.arange(bin_min,bin_max+2*bin_width,bin_width)-bin_width/2
             
             if self.hist is None:
-                self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
-                            'y': np.zeros((self.bins.shape[0]-1)),      
-                            'z': np.zeros((self.bins.shape[0]-1))}
+                self.hist = {'x': np.zeros((self.bins['x'].shape[0]-1)),      
+                            'y': np.zeros((self.bins['y'].shape[0]-1)),      
+                            'z': np.zeros((self.bins['z'].shape[0]-1))}
 
             if self.min_max is None:
                 self.min_max = {'x':{'min':None, 'max':None},
