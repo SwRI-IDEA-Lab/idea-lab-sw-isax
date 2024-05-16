@@ -68,11 +68,12 @@
         "-cache",
         "-min_samples","3",
         "-min_cluster_size","10",
-        "-cache_folder", "/home/jasminekobayashi/isax_cache/",
+        "-cache_folder", "/home/jasminekobayashi/isax_cache3/",
         "-transliterate", 
         "-plot_cluster",
         "-recluster_iterations","-1",
-        "-set_largest_cluster_to_noncluster"
+        "-set_largest_cluster_to_noncluster",
+        "-save_clusters"
       ]
     }
   ]
