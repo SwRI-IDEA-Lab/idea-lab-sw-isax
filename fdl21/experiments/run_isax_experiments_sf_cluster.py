@@ -242,8 +242,8 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-save_clusters',
-    help='Save clusters to pickle file',
+    '-save_model',
+    help='Save isax_pipe object and clusters to pickle file',
     default=False,
     action='store_true'
 )
@@ -688,7 +688,7 @@ def run_experiment(
     parallel = False,
     recluster_iterations = 0,
     set_largest_cluster_to_noncluster = False,
-    save_clusters = False
+    save_model = False
  ):
     """Run the iSAX experiment
 
@@ -1092,12 +1092,13 @@ def run_experiment(
                     component_annotations[component][f'cluster {component}'] += [cluster_n] * len(annotations['File'])        
                     component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
 
-        if save_clusters:
-            cluster_dictionary = {'hdbscan_clusters': hdbscan_clusters, 
-                                      'all_clusters':clusters}
+        if save_model:
+            model_dictionary = {'isax_pipe': isax_pipe,
+                                'hdbscan_clusters': hdbscan_clusters,
+                                'all_clusters': clusters}
             
-            with open('runs/'+ pdf_file + '_' + f'{component}' + '_cluster-models.pkl', 'wb') as f:
-                pickle.dump(cluster_dictionary,f)
+            with open('runs/'+ pdf_file + '_' + f'{component}' + '_model-dictionary.pkl', 'wb') as f:
+                pickle.dump(model_dictionary,f)
 
         pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
         if plot_cluster:

@@ -73,7 +73,7 @@
         "-plot_cluster",
         "-recluster_iterations","-1",
         "-set_largest_cluster_to_noncluster",
-        "-save_clusters"
+        "-save_model"
       ]
     }
   ]
