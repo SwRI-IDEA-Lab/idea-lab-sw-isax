@@ -23,6 +23,7 @@ import hdbscan
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+import dill as pickle
 plt.style.use('default')
 # plt.style.use('ggplot')
 import matplotlib.dates as mdates
@@ -236,6 +237,13 @@ parser.add_argument(
 parser.add_argument(
     '-set_largest_cluster_to_noncluster',
     help='Set the largest cluster to Cluster -1 ("unclustered")',
+    default=False,
+    action='store_true'
+)
+
+parser.add_argument(
+    '-save_clusters',
+    help='Save clusters to pickle file',
     default=False,
     action='store_true'
 )
@@ -679,7 +687,8 @@ def run_experiment(
     plot_cluster=False,
     parallel = False,
     recluster_iterations = 0,
-    set_largest_cluster_to_noncluster = False
+    set_largest_cluster_to_noncluster = False,
+    save_clusters = False
  ):
     """Run the iSAX experiment
 
@@ -1083,6 +1092,12 @@ def run_experiment(
                     component_annotations[component][f'cluster {component}'] += [cluster_n] * len(annotations['File'])        
                     component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
 
+        if save_clusters:
+            cluster_dictionary = {'hdbscan_clusters': hdbscan_clusters, 
+                                      'all_clusters':clusters}
+            
+            with open('runs/'+ pdf_file + '_' + f'{component}' + '_cluster-models.pkl', 'wb') as f:
+                pickle.dump(cluster_dictionary,f)
 
         pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
         if plot_cluster:
@@ -1193,7 +1208,7 @@ def run_experiment(
     plt.close(component_dict_wand[f'TSNE z'])
     plt.close('all')
 
-  
+
     
 if __name__ == "__main__":
     args = vars(parser.parse_args())
