@@ -419,7 +419,8 @@ def plot_cluster_curves(cluster,
                         cache=False,
                         cache_folder=None,
                         percentiles = [[10,90], [20,80], [30,70], [40,60]],
-                        instrument='psp'
+                        instrument='psp',
+                        units = 'B (nT)'
                         ):
     """Function to plot the curves and information associated with a cluster
 
@@ -496,8 +497,8 @@ def plot_cluster_curves(cluster,
     ax[2].yaxis.set_label_position("right")
     ax[2].yaxis.tick_right()
 
-    ax[0].set_ylabel('B (nT)')
-    ax[2].set_ylabel('B (nT)')
+    ax[0].set_ylabel(units)
+    ax[2].set_ylabel(units)
 
     ax[1].set_xlim(ax[0].get_xlim())
     ax[1].set_ylim(ax[0].get_ylim())
@@ -967,6 +968,9 @@ def run_experiment(
                                             }
     
     component_dict_wand = {}
+    units = {'x':'B (nT)',
+             'y':'Relative Speed (km/s)', 
+             'z':'Proton Density (#/$cm^3$)'}
     for component in ['x','y','z']:
 
         nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
@@ -980,7 +984,7 @@ def run_experiment(
             n_processes=n_processes
         )
         # (re)clustering iteration labels (hdbscan_clusters are all iteration = 0)
-        RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
+        RI_label_list = [0]*(np.max(hdbscan_clusters.labels_)+1)
 
         ### recluster Cluster -1
         if recluster_iterations > 0:
@@ -1003,12 +1007,12 @@ def run_experiment(
                 # calculate number of new clusters
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
-                # Update RI_label
+                # Update RI_label_list
                 # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
                 iteration_label = i+1
                 if set_largest_cluster_to_noncluster:
-                    RI_label[-1] = iteration_label
-                RI_label = RI_label + [iteration_label]*n_new_clusters
+                    RI_label_list[-1] = iteration_label
+                RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
 
             clusters = reindexed_clusters
         elif set_largest_cluster_to_noncluster and recluster_iterations == -1:   
@@ -1040,12 +1044,12 @@ def run_experiment(
                 # calculate number of new clusters
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
-                # Update RI_label
+                # Update RI_label_list
                 # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
                 iteration_label += 1
                 if set_largest_cluster_to_noncluster:
-                    RI_label[-1] = iteration_label
-                RI_label = RI_label + [iteration_label]*n_new_clusters
+                    RI_label_list[-1] = iteration_label
+                RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
 
                 # Conditions for finding point of stability====================================
                 # There were two behaviors I noticed when reclustering iterations started stabilizing:
@@ -1071,7 +1075,26 @@ def run_experiment(
                         if np.allclose(saved_before_nodes,nodes_after_recluster):
                             conditions[1] = True
 
+            # save label of last cluster before reclustering
+            last_cluster_label_before = np.max(reindexed_clusters.labels_)
+            # recluster
+            reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
+                                                        expected_val=expected_val,
+                                                        min_cluster_size=min_cluster_size,
+                                                        min_samples=min_samples,
+                                                        cluster_selection_epsilon=cluster_selection_epsilon,
+                                                        set_largest_cluster_to_noncluster = False)
             
+            # save label of last cluster after reclustering
+            last_cluster_label_after = np.max(reindexed_clusters.labels_)
+            # calculate number of new clusters
+            n_new_clusters = last_cluster_label_after - last_cluster_label_before
+
+            # Update RI_label_list
+            # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
+            iteration_label += 1.1
+            RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
+
             clusters = reindexed_clusters
         else:
             clusters = hdbscan_clusters
@@ -1109,8 +1132,8 @@ def run_experiment(
             for cluster_n in tqdm(np.arange(np.min(clusters.labels_), np.max(clusters.labels_)+1), 
                                         desc=f'Plotting nodes in {cluster_n} clusters...'):
 
-                fig_c = plot_cluster_curves(cluster_n,RI_label[cluster_n], clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
-                                            cache=cache,instrument=instrument, cache_folder=cache_folder)
+                fig_c = plot_cluster_curves(cluster_n,RI_label_list[cluster_n], clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                                            cache=cache,instrument=instrument, cache_folder=cache_folder,units=units[component])
                 pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
                 plt.close(fig_c)
 
