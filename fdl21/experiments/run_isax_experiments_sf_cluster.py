@@ -626,7 +626,7 @@ def build_cache(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'     
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1994_2023.csv'
+        catalog_fname = 'B_FS_PD/omni_master_catalog_1994_2023.csv'
 
     if instrument == 'omni':
         orbit_fname = None
@@ -756,7 +756,7 @@ def run_experiment(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_2017_2019.csv'
+        catalog_fname = 'B_FS_PD/omni_master_catalog_1994_2023.csv'
 
     # Orbit file
     if instrument == 'omni':
@@ -984,16 +984,15 @@ def run_experiment(
             n_processes=n_processes
         )
         # (re)clustering iteration labels (hdbscan_clusters are all iteration = 0)
-        RI_label_list = [0]*(np.max(hdbscan_clusters.labels_)+1)
-
+        hdbscan_clusters_mask = (hdbscan_clusters.labels_>-1).nonzero()[0]
+        hdbscan_labels = np.unique(hdbscan_clusters.labels_[hdbscan_clusters_mask])
+        RI_label_list = [0]*(len(hdbscan_labels))
         ### recluster Cluster -1
         if recluster_iterations > 0:
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
 
             for i in range(recluster_iterations):
-                # save label of last cluster before reclustering
-                last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 # recluster
                 reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
                                                             expected_val=expected_val,
@@ -1002,17 +1001,23 @@ def run_experiment(
                                                             cluster_selection_epsilon=cluster_selection_epsilon,
                                                             set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
-                # save label of last cluster after reclustering
-                last_cluster_label_after = np.max(reindexed_clusters.labels_)
+                # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
+                reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
+                # list of cluster labels
+                cluster_labels = np.unique(reindexed_clusters.labels_[reindexed_clusters_mask])
+
                 # calculate number of new clusters
-                n_new_clusters = last_cluster_label_after - last_cluster_label_before
+                n_new_clusters = len(cluster_labels) - len(RI_label_list)
 
                 # Update RI_label_list
-                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
                 iteration_label = i+1
                 if set_largest_cluster_to_noncluster:
                     RI_label_list[-1] = iteration_label
-                RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
+
+                if n_new_clusters <0:
+                    RI_label_list = RI_label_list[:n_new_clusters]
+                else:
+                    RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
 
             clusters = reindexed_clusters
         elif set_largest_cluster_to_noncluster and recluster_iterations == -1:   
@@ -1045,11 +1050,9 @@ def run_experiment(
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
                 # Update RI_label_list
-                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
                 iteration_label += 1
                 if set_largest_cluster_to_noncluster:
                     RI_label_list[-1] = iteration_label
-                RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
 
                 # Conditions for finding point of stability====================================
                 # There were two behaviors I noticed when reclustering iterations started stabilizing:
@@ -1066,7 +1069,13 @@ def run_experiment(
                     conditions[0] = True
                     saved_before_label = last_cluster_label_before
                     saved_before_nodes = expected_val[before_mask]
-                
+
+                    # Update RI_label_list accordingly
+                    RI_label_list = RI_label_list[:n_new_clusters]
+                else:
+                    # Just update RI_label_list and move on
+                    RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
+
                 # if first condition is met, check second condition
                 if conditions[0] and last_cluster_label_after == saved_before_label:
                     # check nodes
@@ -1075,6 +1084,7 @@ def run_experiment(
                         if np.allclose(saved_before_nodes,nodes_after_recluster):
                             conditions[1] = True
 
+            # Recluster just cluster -1 after stabilization================================================    
             # save label of last cluster before reclustering
             last_cluster_label_before = np.max(reindexed_clusters.labels_)
             # recluster
@@ -1094,7 +1104,8 @@ def run_experiment(
             # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
             iteration_label += 1.1
             RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
-
+            #===============================================================================================
+            
             clusters = reindexed_clusters
         else:
             clusters = hdbscan_clusters
