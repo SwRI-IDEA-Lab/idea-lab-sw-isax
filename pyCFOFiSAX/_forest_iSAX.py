@@ -4,6 +4,7 @@
 from numpy import array as np_array
 from numpy import ndarray as np_ndarray
 from numpy import zeros as np_zeros
+import numpy as np
 
 from pyCFOFiSAX._tree_iSAX import TreeISAX
 from tslearn.piecewise import PiecewiseAggregateApproximation
@@ -151,13 +152,14 @@ class ForestISAX:
             npaa_tmp = npaa_tmp.reshape(npaa_tmp.shape[:-1])
 
             for j,npa_tp in enumerate(npaa_tmp):
-                entry = {}
-                if annotation is not None:
-                    for key, value in annotation.items():
-                        entry[key] = value[j]
+                if np.sum(np.isnan(np.array(npa_tp))) == 0:
+                    entry = {}
+                    if annotation is not None:
+                        for key, value in annotation.items():
+                            entry[key] = value[j]
 
-                tree.insert_paa(npa_tp, annotation=entry, parallel=parallel)
-                cmpt_insert[i] += 1
+                    tree.insert_paa(npa_tp, annotation=entry, parallel=parallel)
+                    cmpt_insert[i] += 1
 
         # Returns array[tree_index] with the number of inserted objects for each tree
         return cmpt_insert
