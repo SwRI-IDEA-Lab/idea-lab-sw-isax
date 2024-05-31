@@ -1084,27 +1084,6 @@ def run_experiment(
                         if np.allclose(saved_before_nodes,nodes_after_recluster):
                             conditions[1] = True
 
-            # Recluster just cluster -1 after stabilization================================================    
-            # save label of last cluster before reclustering
-            last_cluster_label_before = np.max(reindexed_clusters.labels_)
-            # recluster
-            reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
-                                                        expected_val=expected_val,
-                                                        min_cluster_size=min_cluster_size,
-                                                        min_samples=min_samples,
-                                                        cluster_selection_epsilon=cluster_selection_epsilon,
-                                                        set_largest_cluster_to_noncluster = False)
-            
-            # save label of last cluster after reclustering
-            last_cluster_label_after = np.max(reindexed_clusters.labels_)
-            # calculate number of new clusters
-            n_new_clusters = last_cluster_label_after - last_cluster_label_before
-
-            # Update RI_label_list
-            # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
-            iteration_label += 1.1
-            RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
-            #===============================================================================================
             
             clusters = reindexed_clusters
         else:
