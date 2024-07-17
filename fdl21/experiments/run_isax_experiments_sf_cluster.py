@@ -729,14 +729,49 @@ def run_experiment(
         [description], by default 2
     detrend_window : int, optional
         [description], by default 1800
+    overlap : int, optional
+        [description], by default dt.timedelta(seconds=0)
     node_level_depth : int, optional
         [description], by default 16
-    min_node_size : int
-        Minimum node size to include in clustering
+    min_cluster_size : int, optional
+        [description], by default 5
+    min_samples : int, optional
+        [description], by default 5
+    cache : boolean, optional
+        [description], by default False
+    cache_folder : 'string', optional
+        [description], by default '/cache/'
     transliterate : int, optional
         [description], by default False
     instrument: string
-            instrument to analyze        
+            instrument to analyze   
+    cluster_selection_epsilon : [type], optional
+        [description], by default None
+    n_processes : int, optional
+        [description], by default 4
+    profiling : boolean, optional
+        [description], by default False
+    plot_cluster : boolean, optional
+        [description], by default False
+    parallel: boolean, optional
+        [description], by default False
+    recluster_iterations : int, optional
+        Number of times to recluster Cluster -1 independently. 
+        If 0, only does one initial cluster and never re-clusters cluster -1. 
+        If greater than 0, then reclusters that many iterations. 
+        If -1, "automatically" reclusters until reaches stability point 
+        (doesn't create any new clusters) or until reaches maximum iteration count criteria.
+        By default 0
+    set_largest_cluster_to_noncluster : boolean, optional
+        Not relevant if recluster_iterations=0. 
+        Sometimes when clustering, an extremely large cluster that does not necessarily have any 
+        meaningful patterns is created.
+        Indicate whether or not to recluster the largest cluster along with cluster -1.
+        By default False
+    save_model : boolean, optional
+        Indicate whether or not to save dictionaries of pipelines and clusters to pickle files 
+        for each component.
+        By default False
     """
     # Cluster selection epsilon text (for pdf filename)
     if cluster_selection_epsilon is None:
