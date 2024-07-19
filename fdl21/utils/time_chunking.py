@@ -150,7 +150,7 @@ def time_chunking(
             .reindex(interp_mag_df.index)
         )
 
-        interp_mag_seq, interp_time_seq = sliding_window(
+        interp_mgn_seq, interp_time_seq = sliding_window(
             df = interp_mag_df, 
             cols = cols,
             chunk_size = chunk_size,
