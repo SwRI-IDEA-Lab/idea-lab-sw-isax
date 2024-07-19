@@ -399,22 +399,7 @@ class iSaxPipeline(object):
         LOG.debug(f'Average sampling rate for current dataset: {avg_sampling_rate:0.3f}')
         #cols = [col for col in self.mag_df.columns if 'mag' not in col.lower()]        
 
-        if optimized:
-                self.interp_mag_seq, self.interp_time_seq, self.chunk_filelist = tc.time_chunking_optimized(
-                    mag_df=mag_df,
-                    cols=cols,
-                    cadence=cadence,
-                    chunk_size=chunk_size,
-                    overlap=overlap,
-                    smooth=smooth,
-                    smooth_window=smooth_window,
-                    detrend=detrend,
-                    detrend_window=detrend_window, 
-                    avg_sampling_rate=avg_sampling_rate
-            )
-        else:
-            # Run the time chunking to generate our interpolated time series
-            self.interp_time_seq, self.interp_mag_seq, self.chunk_filelist = tc.time_chunking(
+        self.interp_time_seq, self.interp_mag_seq, self.chunk_filelist = tc.time_chunking(
                 mag_df=mag_df,
                 cols=cols,
                 cadence=cadence,
@@ -423,6 +408,7 @@ class iSaxPipeline(object):
                 smooth_window=smooth_window,
                 detrend=detrend,
                 detrend_window=detrend_window, 
+                optimized=optimized,
                 avg_sampling_rate=avg_sampling_rate
             )
         et_t = time.time()
