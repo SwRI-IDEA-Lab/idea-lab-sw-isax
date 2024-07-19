@@ -47,6 +47,7 @@ def time_chunking(
     cols,
     cadence = timedelta(seconds=300), 
     chunk_size = timedelta(seconds=3600), 
+    overlap = timedelta(seconds=0),
     start_time = None, 
     end_time = None,
     kind = 'linear',
