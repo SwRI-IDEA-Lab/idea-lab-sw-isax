@@ -450,26 +450,39 @@ def read_OMNI_dataset(fname):
     mag_data['B_mag'] = cdf_file['F']   # Mag. Avg. B-vector
     # for i in ['X','Y','Z']:
     #     mag_data[f'B{i}_GSE'] = cdf_file[f'B{i}_GSE']
-    # =================================================
+    # ==============================================================================
     # Quick solution to analyze other parameters (remove portion between lines, 
     # and uncomment above two lines to return to IMF analysis only)
     # TODO: Implement more long term solution to analyze other SW parameters
     mag_data['BX_GSE'] = cdf_file['F']
     mag_data['BY_GSE'] = cdf_file['flow_speed']
     mag_data['BZ_GSE'] = cdf_file['proton_density']
-    # =================================================
+    # ==============================================================================
     # Datetime Index
     dates = convert_OMNI_EPOCH(cdf_file)
     mag_df = pd.DataFrame(mag_data,index=pd.DatetimeIndex(dates)).sort_index()
     ## Round datetime index column to nearest minute
     mag_df.index = mag_df.index.round('min') 
 
+    #------------------------------------------------------------------------------
     # Replace fill-values with NaNs (for IMF: fill value = 9999.99)
-    # TODO: (JK) Allow for more flexibility for replacing fill values other than IMF
-    ## for some reason even if the data starts as 'float32', need to convert to 'float' again
-    ## (probably 'float64') for pd.round() to work
+    # for some reason even if the data starts as 'float32', need to convert to 'float' again
+    # (probably 'float64') for pd.round() to work
+    #------------------------------------------------------------------------------
     mag_df = mag_df.astype('float').round(2)
-    mag_df.replace(to_replace=9999.99,value=np.nan,inplace = True)
+    # TODO: (JK) Implement long-term solution to repalce fill values with NaNs respective to each parameter
+    # mag_df.replace(to_replace=9999.99,value=np.nan,inplace = True)  # only for IMF data
+
+    # fill values w.r.t each parameter=============================================
+    # TODO: (JK) Allow for more flexibility for replacing fill values other than IMF
+    fill_values = {'B_mag':9999.99,     # 'F'
+                   'BX_GSE':9999.99,    # 'F'
+                   'BY_GSE':99999.9,    # 'flow_speed'
+                   'BZ_GSE':999.99}     # 'proton_density
+    
+    for key,value in fill_values.items():
+        mag_df[[key]] = mag_df[[key]].replace(to_replace=value,value=np.nan)
+    # =============================================================================
 
     return mag_df
 
