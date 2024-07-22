@@ -190,6 +190,7 @@ def generate_catalog(
         hist = np.zeros((bins.shape[0]-1,3))
     
     # List of years is exclusive, so the stop_year is excluded
+    # TODO: (JK) I think the stop_year is actually inclusive now with the '+1' part, but good to double check
     years_to_process = np.arange(start_year, stop_year+1, 1)
 
     # Loop through each year we want to analyze and retrieve the filenames
