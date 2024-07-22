@@ -42,4 +42,5 @@ dependencies:
   - anytree
   - pyyaml
   - dill
+  - git+https://github.com/SiggiGue/pyfilterbank.git
 
