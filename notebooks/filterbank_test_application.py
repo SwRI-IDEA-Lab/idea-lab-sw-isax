@@ -102,8 +102,8 @@ high_freq_fft = sig_fft.copy()
 high_freq_fft[np.abs(sample_freq) > 100] = 0
 
 filtered_sig = fft.ifft(high_freq_fft)
-plt.plot(mag_df.index,y-np.mean(y), label='Original signal')
-plt.plot(mag_df.index,filtered_sig, linewidth=3, label='Filtered signal')
+plt.plot(mag_df.index,y-np.mean(y),linewidth=5, label='Original signal')
+plt.plot(mag_df.index,filtered_sig, label='Filtered signal')
 
 # %%
 total = np.real(y.copy()*0)
@@ -171,10 +171,4 @@ ax.set_xlim((f1, f2))
 ax.set_title('Mel filter bank')
 ax.set_xticks([])
 
-# ax2 = ax.twiny()
-# ax2.xaxis.set_ticks_position('top')
-# ax2.set_xlim((f1, f2))
-# ax2.xaxis.set_ticks(melbank.mel_to_hertz(melfreq))
-# ax2.xaxis.set_ticklabels(['{:.0f}'.format(mf) for mf in melfreq])
-# ax2.set_xlabel('Frequency / mel')
 # %%
