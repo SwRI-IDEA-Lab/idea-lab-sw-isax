@@ -69,7 +69,7 @@
         "-cache",
         "-min_samples","3",
         "-min_cluster_size","10",
-        "-cache_folder", "/home/jasminekobayashi/isax_cache4/",
+        "-cache_folder", "/home/jasminekobayashi/isax_cache5/",
         "-transliterate", 
         "-plot_cluster",
         "-recluster_iterations","-1",
