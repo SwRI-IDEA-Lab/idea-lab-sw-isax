@@ -408,8 +408,7 @@ class iSaxPipeline(object):
                 smooth_window=smooth_window,
                 detrend=detrend,
                 detrend_window=detrend_window, 
-                optimized=optimized,
-                avg_sampling_rate=avg_sampling_rate
+                optimized=optimized
             )
         et_t = time.time()
         duration = et_t - st_t

@@ -56,8 +56,6 @@ def time_chunking(
     smooth=False,
     smooth_window=timedelta(seconds=30),
     optimized = False,
-    avg_sampling_rate=None,
-    min_datapoints=0.5,
     return_pandas=False
 ):
 
