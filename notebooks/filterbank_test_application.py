@@ -50,7 +50,7 @@ start = dt.datetime(year=int(year),month=int(month),day=day,hour=0)
 end = dt.datetime(year=int(year),month=int(month),day=day+1,hour=0)
 
 mag_df = mag_df[start:end]
-# %%
+# %% Construct Mel Bank
 f1, f2 = 0, 5
 melmat, (melfreq, fftfreq) = melbank.compute_melmat(2, f1, f2, num_fft_bands=100000)
 
@@ -105,7 +105,7 @@ filtered_sig = fft.ifft(high_freq_fft)
 plt.plot(mag_df.index,y-np.mean(y),linewidth=5, label='Original signal')
 plt.plot(mag_df.index,filtered_sig, label='Filtered signal')
 
-# %%
+# %% Filter bank application and decomposition
 total = np.real(y.copy()*0)
 total_paa = np.real(y.copy()*0)
 fig = plt.figure(figsize=(24, 8))
@@ -170,5 +170,3 @@ ax.set_xlabel('Frequency / Hz')
 ax.set_xlim((f1, f2))
 ax.set_title('Mel filter bank')
 ax.set_xticks([])
-
-# %%
