@@ -24,8 +24,8 @@ from pathlib import Path
 
 # Add the ~/fdl-2021-solar-wind-repository/src directory to our path
 # this will ensure we can import the necessary modules
-_MODEL_DIR = os.path.abspath(__file__).split('/')[:-1]
-_SRC_DIR = os.path.join('/',*_MODEL_DIR[:-1])
+_MODEL_DIR = os.path.dirname( os.path.abspath(__file__))
+_SRC_DIR = os.path.dirname(_MODEL_DIR)
 sys.path.append(_SRC_DIR)
 
 
@@ -48,6 +48,7 @@ from fdl21.data import helper_funcs as hf
 
 _PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
 _WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
+_OMNI_MAG_DATA_DIR = '/sw-data/nasaomnireader/'
 _SRC_DATA_DIR = os.path.join(
     _SRC_DIR,
     'data',
@@ -99,6 +100,8 @@ class iSaxPipeline(object):
         if instrument == 'psp':
             fmt = '%Y%m%d%H'
         elif instrument == 'wind':
+            fmt = '%Y%m%d'
+        elif instrument == 'omni':
             fmt = '%Y%m%d'
         converter = lambda val: hf.fname_to_datetime(val, fmt=fmt)
         dates = self._catalog['fname'].apply(converter)
@@ -456,40 +459,40 @@ class iSaxPipeline(object):
             data_dir = _PSP_MAG_DATA_DIR
         elif instrument=='wind' :
             data_dir = _WIND_MAG_DATA_DIR
+        elif instrument == 'omni':
+            data_dir = _OMNI_MAG_DATA_DIR
 
         # Generate the full path to the file
         fname_full_path = os.path.join(
-            data_dir,
+            _SRC_DIR + data_dir,
             *fname.split('/') # this is required do to behavior of os.join
         )
         LOG.debug(f'Extracting data from:\n {fname_full_path}')
-        if self.mag_df is not None:
-            if instrument == 'psp':
-                mag_df = pm.read_PSP_dataset(
-                    fname=fname_full_path,
-                    orbit=self.orbit,
-                    rads_norm=rads_norm,
-                    exponents_list=_EXPONENTS_LIST
-                )
-            elif instrument == 'wind':
-                mag_df = pm.read_WIND_dataset(
-                    fname=fname_full_path
-                )
-            mag_df['filename'] = [fname]*mag_df.shape[0]
+        
+        if instrument == 'psp':
+            mag_df = pm.read_PSP_dataset(
+                fname=fname_full_path,
+                orbit=self.orbit,
+                rads_norm=rads_norm,
+                exponents_list=_EXPONENTS_LIST
+            )
+        elif instrument == 'wind':
+            mag_df = pm.read_WIND_dataset(
+                fname=fname_full_path
+            )
+        elif instrument == 'omni':
+            mag_df = pm.read_OMNI_dataset(
+                fname=fname_full_path
+            )
+        
+        mag_df['filename'] = [fname]*mag_df.shape[0]
+        
+        if self.mag_df is not None:   
+            # if self.mag_df is not empty, concat mag_df with existing self.mag_df
             self.mag_df = pd.concat([self.mag_df, mag_df])            
-        else:
-            if instrument == 'psp':
-                self.mag_df = pm.read_PSP_dataset(
-                    fname=fname_full_path,
-                    orbit=self.orbit,
-                    rads_norm=rads_norm,
-                    exponents_list=_EXPONENTS_LIST
-                )
-            else:
-                self.mag_df = pm.read_WIND_dataset(
-                    fname=fname_full_path
-                )                
-            self.mag_df['filename'] = [fname]*self.mag_df.shape[0]
+        else:        
+            # otherwise, self.mag_df is not built yet and this is first self.mag_df
+            self.mag_df = mag_df
        
         et_t = time.time()
         duration = et_t - st_t
@@ -513,18 +516,35 @@ class iSaxPipeline(object):
 
         Parameters
         ----------
-        fname : [type]
+        fname : str
+            name of file associated with the sequence of data
+        time_seq : np.array
             [description]
-        time_seq : [type]
+        mag_seq : np.array
             [description]
-        mag_seq : [type]
-            [description]
-
+        chunk_num : int
+            chunk number associated with the sequence of data
 
         Returns
         -------
-        [type]
-            [description]
+        ts_x : list
+            list of x-component of mag_seq (Bx)
+        
+        ts_y : list
+            list of y-component of mag_seq (By)
+
+        ts_z : list
+            list of z-component of mag_seq (Bz)
+        
+        ts_x_loc : dict
+            dictionary of annotations for Bx of mag_seq
+        
+        ts_y_loc : dict
+            dictionary of annotations for By of mag_seq
+        
+        ts_z_loc : dict
+            dictionary of annotations for Bz of mag_seq
+        
         """
         
         size = mag_seq.shape[0]
@@ -769,16 +789,22 @@ class iSaxPipeline(object):
         cache_folder='/cache/',
         instrument='psp'      
     ):
-        """Run the full pipeline
+        """Build new cache file or reload existing one to calculate PAA histogram for stand dev
+        and mean calculation
+
+        A cache file consists various information of the time sequence of data associated with the passed file.
+
 
         Parameters
         ----------
-        flist : list
-            list of files that you want to process
+        file : str
+            The filename we wish to process
         cadence : dt.timedelta
             The final cadence of the interpolated timeseries, default is 1 seconds
         chunk_size : dt.timedelta
             The duration of each chunk, default is 300 seconds
+        overlap : [type]
+            [description]
         rads_norm : bool, optional
             Boolean flag for controlling the normalization of the magnetic field 
             to account for the decay of the field strength with heliocentric distance
@@ -792,91 +818,98 @@ class iSaxPipeline(object):
             The size of the smoothing window in seconds, default is 1800 seconds
         optimized: bool
             Use optimized version of the time_chunking algorithm
+        hist_max : [type]
+            [description]
+        bin_width : [type]
+            [description]
+        cache_folder : [type]
+            [description]
         instrument: string
             instrument to analyze
 
 
         Returns
         ---------
-        sucess : bool
+        success : bool
             Flag that returns true if cache completed successfully
 
         """
 
+        self._paa = PiecewiseAggregateApproximation(self.word_size)
+        self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
+        
+        if self.hist is None:
+            self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
+                        'y': np.zeros((self.bins.shape[0]-1)),      
+                        'z': np.zeros((self.bins.shape[0]-1))}
 
-        try:
+        # update the dictionary with out input parameters
+        self.input_parameters['rads_norm'] = rads_norm
+        # self.input_parameters['files_analyzed'] = flist
+        self.input_parameters['cadence'] = cadence.seconds
+        self.input_parameters['chunk_size'] = chunk_size.seconds
+        self.input_parameters['overlap'] = overlap.seconds
+        self.input_parameters['smooth'] = smooth
+        self.input_parameters['smooth_window'] = smooth_window.seconds
+        self.input_parameters['detrend'] = detrend
+        self.input_parameters['detrend_window'] = detrend_window.seconds
+        self.input_parameters['optimized'] = optimized
 
-            self._paa = PiecewiseAggregateApproximation(self.word_size)
-            self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
-            
-            if self.hist is None:
-                self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
-                            'y': np.zeros((self.bins.shape[0]-1)),      
-                            'z': np.zeros((self.bins.shape[0]-1))}
+        # Check if the cache file already exists
+        output_file = cache_folder + file.split('.')[0] + '.npz'
+        cache_file = Path(output_file)
+        if cache_file.is_file():
+            LOG.info('Loading cached file...')
+            self.restore_variables(output_file)
+        else:
+            LOG.info('Creating cached file...')
+            self.read_file(
+                fname = file,
+                rads_norm=rads_norm,
+                instrument=instrument
+            )
 
-            # update the dictionary with out input parameters
-            self.input_parameters['rads_norm'] = rads_norm
-            # self.input_parameters['files_analyzed'] = flist
-            self.input_parameters['cadence'] = cadence.seconds
-            self.input_parameters['chunk_size'] = chunk_size.seconds
-            self.input_parameters['overlap'] = overlap.seconds
-            self.input_parameters['smooth'] = smooth
-            self.input_parameters['smooth_window'] = smooth_window.seconds
-            self.input_parameters['detrend'] = detrend
-            self.input_parameters['detrend_window'] = detrend_window.seconds
-            self.input_parameters['optimized'] = optimized
+            cols = [val for val in self.mag_df.columns if 'mag' not in val]
+            cols = [val for val in cols if 'filename' not in val]
+            #cols = [val for val in self.mag_df.columns if 'mag' not in val]
+            self.get_time_chunks(
+                mag_df = self.mag_df,
+                cols = cols,
+                cadence = cadence,
+                chunk_size = chunk_size,
+                overlap = overlap,
+                smooth = smooth,
+                smooth_window = smooth_window,
+                detrend = detrend,
+                detrend_window = detrend_window,
+                optimized = optimized
+            )
 
-            # Check if the cache file already exists
-            output_file = cache_folder + file.split('.')[0] + '.npz'
-            cache_file = Path(output_file)
-            if cache_file.is_file():
-                LOG.info('Loading cached file...')
-                self.restore_variables(output_file)
-            else:
-                LOG.info('Creating cached file...')
-                self.read_file(
-                    fname = file,
-                    rads_norm=rads_norm,
-                    instrument=instrument
-                )
+            self.build_annotations()
+            if not os.path.exists(cache_folder + '/' + file.split('/')[1] + '/'):
+                os.makedirs(cache_folder + '/' + file.split('/')[1] + '/')  
 
-                cols = [val for val in self.mag_df.columns if 'mag' not in val]
-                cols = [val for val in cols if 'filename' not in val]
-                #cols = [val for val in self.mag_df.columns if 'mag' not in val]
-                self.get_time_chunks(
-                    mag_df = self.mag_df,
-                    cols = cols,
-                    cadence = cadence,
-                    chunk_size = chunk_size,
-                    overlap = overlap,
-                    smooth = smooth,
-                    smooth_window = smooth_window,
-                    detrend = detrend,
-                    detrend_window = detrend_window,
-                    optimized = optimized
-                )
+            np.savez(cache_folder + file.split('.')[0] + '.npz', 
+                    ts = self.ts, 
+                    ts_loc = self.ts_loc,
+                    mag_df = {'mag': self.mag_df},
+                    interp_time_seq = {'time_seq': self.interp_time_seq},
+                    interp_mag_seq = {'mag_seq': self.interp_mag_seq},
+                    chunk_filelist = {'chunk_filelist': self.chunk_filelist})            
 
-                self.build_annotations()
-                if not os.path.exists(cache_folder + '/' + file.split('/')[1] + '/'):
-                    os.makedirs(cache_folder + '/' + file.split('/')[1] + '/')  
+        # Calculate Histogram
+        bins = self.bins
+        for component in ['x', 'y', 'z']:
+            ts_comp = self.ts[component]
+            # reshape component time series for PAA transformation
+            ts_comp_reshape = ts_comp.reshape(ts_comp.shape + (1,))
+            # PAA transformation
+            fit_paa = self._paa.fit_transform(ts_comp_reshape)
 
-                np.savez(cache_folder + file.split('.')[0] + '.npz', 
-                        ts = self.ts, 
-                        ts_loc = self.ts_loc,
-                        mag_df = {'mag': self.mag_df},
-                        interp_time_seq = {'time_seq': self.interp_time_seq},
-                        interp_mag_seq = {'mag_seq': self.interp_mag_seq},
-                        chunk_filelist = {'chunk_filelist': self.chunk_filelist})            
-
-            # Calculate Histogram
-            for component in ['x', 'y', 'z']:
-                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins)
-                self.hist[component] += hist
-
-            return True
-
-        except:
-            return False
+            hist, _ = np.histogram(fit_paa.reshape(-1), bins=bins.astype('float'))
+            self.hist[component] += hist
+            assert np.sum(self.hist[component]) != 0.0, "{comp} histogram is empty. Perhaps check ts['{comp}']".format(comp=component)
+        
 
 
     def run_pipeline(

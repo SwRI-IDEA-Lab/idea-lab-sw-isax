@@ -476,9 +476,16 @@ def build_cache(
         catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'     
+    elif instrument == 'omni':
+        catalog_fname = 'omni_master_catalog_1994_2023.csv'
+
+    if instrument == 'omni':
+        orbit_fname = None
+    else:
+        orbit_fname = 'psp_orbit.csv'
 
     isax_pipe_dummy = isax_model.iSaxPipeline(
-        orbit_fname = 'psp_orbit.csv',
+        orbit_fname = orbit_fname,
         catalog_fname = catalog_fname,
         instrument=instrument
     )
@@ -522,7 +529,7 @@ def run_experiment(
     min_cluster_size = 5,
     min_samples = 5,
     cache=False,
-    cache_folder= '/cache/', 
+    cache_dir_path= '/cache/', 
     transliterate = False,
     instrument='psp',
     cluster_selection_epsilon=None,
@@ -577,24 +584,35 @@ def run_experiment(
     instrument: string
             instrument to analyze        
     """
-
+    # Cluster selection epsilon text (for pdf filename)
     if cluster_selection_epsilon is None:
         cse_text = 'NA'
     else:
         cse_text = str(int(cluster_selection_epsilon*10))
 
+    # File and directory path naming
     cache_folder = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
     pdf_file = cache_folder + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
-    cache_folder =  '/cache/' + cache_folder + '/'
+    cache_folder =  cache_dir_path + cache_folder + '/'
     v = isax_vis.iSaxVisualizer()
     
+    # Data catalog file name to access based on instrument
     if instrument == 'psp':
         catalog_fname = 'psp_master_catalog_2018_2021_rads_norm.csv' 
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
+    elif instrument == 'omni':
+        catalog_fname = 'omni_master_catalog_1994_2023.csv'
 
+    # Orbit file
+    if instrument == 'omni':
+        orbit_fname = None
+    else: 
+        orbit_fname = 'psp_orbit.csv'
+
+    # Instantiate iSax model Pipeline
     isax_pipe = isax_model.iSaxPipeline(
-        orbit_fname = 'psp_orbit.csv',
+        orbit_fname = orbit_fname,
         catalog_fname = catalog_fname,
         threshold = threshold,
         word_size = word_size,
@@ -611,7 +629,7 @@ def run_experiment(
 
     if failsafe:
         isax_pipe_dummy = isax_model.iSaxPipeline(
-            orbit_fname = 'psp_orbit.csv',
+            orbit_fname = orbit_fname,
             catalog_fname = catalog_fname,
             threshold = threshold,
             word_size = word_size,
@@ -659,7 +677,7 @@ def run_experiment(
         instrument_mp) = map(list, zip(*cache_list))                                
 
         with Pool(max_workers=n_processes) as pool:
-            good_files = pool.map(build_cache,
+            good_files = pool.map(isax_pipe.build_cache,
                                 flist_mp,
                                 cadence_mp,
                                 chunk_size_mp,
@@ -702,6 +720,7 @@ def run_experiment(
         centers = (bins[1:]+bins[0:-1])/2
         for component in ['x', 'y', 'z']:
             hist = isax_pipe.hist[component]
+            
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
             sig = np.sum(np.power(centers-mu, 2)*hist*delta)
@@ -773,20 +792,20 @@ def run_experiment(
             node_level=node_level_depth
         )
         for node in isax_pipe.nodes_at_level[component][node_level_depth]:
-            node_sizes[component].append(node.get_annotations().shape[0])
+            node_sizes[component].append(pd.DataFrame(node.get_annotations()).shape[0])
 
     for component in ['x', 'y', 'z']:
         node_sizes[component] = pd.Series(node_sizes[component])
         node_sizes[component].sort_values(ascending=False, inplace=True)
 
     date_time = str(dt.datetime.now().strftime('%Y%m%d%H%M'))
-    wandb.init(
-        entity='solar-wind', 
-        name=f'{pdf_file}_{date_time}',
-        project='CB_week_8_60_full_'+instrument, 
-        job_type='plot-isax-node',
-        config=isax_pipe.input_parameters
-    )
+    # wandb.init(
+    #     entity='solar-wind', 
+    #     name=f'{pdf_file}_{date_time}',
+    #     project='CB_week_8_60_full_'+instrument, 
+    #     job_type='plot-isax-node',
+    #     config=isax_pipe.input_parameters
+    # )
 
     if not os.path.exists('runs'):
         os.makedirs('runs')
@@ -800,29 +819,29 @@ def run_experiment(
 
     dirname = pdf_file
  
-    push_to_cloud(parameter_file.split('/')[1], dirname=dirname + '_' + date_time, relative_folder='runs/')
-    example_table = wandb.Table(columns=[
-                    "Chunk Size",
-                    "Word Size",
-                    "Min Cardinality",
-                    "Max Cardinality",
-                    "Threshold",
-                    "Smooth_Window",
-                    "Detrend Window",
-                    "Overlap",
-                    "Component",
-                    "Min Samples",
-                    "Min Cluster Size",
-                    "Cluster Epsilon",
-                    "Number of Clusters", 
-                    "Number of Nodes", 
-                    "Cluster Image", 
-                    "Cluster PDF", 
-                    "Node PDF",
-                    "Tree",
-                    "Bucket Link"
-                    ]
-    ) 
+    # push_to_cloud(parameter_file.split('/')[1], dirname=dirname + '_' + date_time, relative_folder='runs/')
+    # example_table = wandb.Table(columns=[
+    #                 "Chunk Size",
+    #                 "Word Size",
+    #                 "Min Cardinality",
+    #                 "Max Cardinality",
+    #                 "Threshold",
+    #                 "Smooth_Window",
+    #                 "Detrend Window",
+    #                 "Overlap",
+    #                 "Component",
+    #                 "Min Samples",
+    #                 "Min Cluster Size",
+    #                 "Cluster Epsilon",
+    #                 "Number of Clusters", 
+    #                 "Number of Nodes", 
+    #                 "Cluster Image", 
+    #                 "Cluster PDF", 
+    #                 "Node PDF",
+    #                 "Tree",
+    #                 "Bucket Link"
+    #                 ]
+    # ) 
 
     if transliterate:
         component_annotations = {'x': pd.DataFrame(),'y': pd.DataFrame(), 'z': pd.DataFrame()}
@@ -911,27 +930,27 @@ def run_experiment(
         bucket_link = f"https://storage.cloud.google.com/storage/browser/isax-experiments-results/{dirname + '_' + date_time}"
 
 
-        example_table.add_data(
-            chunk_size.seconds,
-            word_size,
-            min_cardinality,
-            max_cardinality,
-            threshold,
-            smooth_window.seconds,
-            detrend_window.seconds,
-            overlap.seconds,
-            component,
-            min_samples,
-            min_cluster_size,
-            cluster_selection_epsilon,
-            np.max(hdbscan_clusters.labels_) + 1,
-            node_sizes[component].shape[0],
-            wandb.Image(cluster_fig),
-            gsurl_c,   
-            gsurl_n,
-            gsurl_tree,
-            bucket_link
-        )
+        # example_table.add_data(
+        #     chunk_size.seconds,
+        #     word_size,
+        #     min_cardinality,
+        #     max_cardinality,
+        #     threshold,
+        #     smooth_window.seconds,
+        #     detrend_window.seconds,
+        #     overlap.seconds,
+        #     component,
+        #     min_samples,
+        #     min_cluster_size,
+        #     cluster_selection_epsilon,
+        #     np.max(hdbscan_clusters.labels_) + 1,
+        #     node_sizes[component].shape[0],
+        #     wandb.Image(cluster_fig),
+        #     gsurl_c,   
+        #     gsurl_n,
+        #     gsurl_tree,
+        #     bucket_link
+        # )
     
     if transliterate:
         transliteration = component_annotations['x'].merge(component_annotations['y'], how='outer', left_index=True, right_index=True, suffixes=(None, '_y'))
@@ -941,8 +960,8 @@ def run_experiment(
         transliteration.to_csv('runs/'+ transliteration_file)
         push_to_cloud(transliteration_file, dirname=dirname + '_' + date_time, relative_folder='runs/')
  
-    wandb.log({f"iSAX Experiment": example_table})
-    wandb.finish()
+    # wandb.log({f"iSAX Experiment": example_table})
+    # wandb.finish()
   
     
 if __name__ == "__main__":

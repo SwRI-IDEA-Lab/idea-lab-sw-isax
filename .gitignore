@@ -162,3 +162,8 @@ cython_debug/
 # iSAX related files
 *.txt
 *.csv
+*.cdf
+*.npz
+
+wandb/
+runs/

@@ -299,7 +299,7 @@ class iSaxVisualizer():
                     ntimeseries = node.nb_sequences
                 rand_subset = rng.choice(node.nb_sequences, np.min([ntimeseries, node.nb_sequences]), replace=False)
             
-            data_node = node.get_annotations()
+            data_node = pd.DataFrame(node.get_annotations())
             data_node = data_node.iloc[rand_subset].copy()
             if all_annotations is None:
                 all_annotations = data_node
