@@ -1,5 +1,4 @@
 import os
-os.chdir('/home/jasminekobayashi/idea-lab-sw-isax')
 
 import glob
 import datetime as dt
@@ -30,5 +29,5 @@ if __name__ == "__main__":
                             #    chunk_size=dt.timedelta(seconds=600),
                                smooth_window=dt.timedelta(seconds=1800),
                                cache=True,
-                               cache_dir_path='/home/jasminekobayashi/isax_cache/',
+                               cache_folder='/home/jasminekobayashi/isax_cache/',
                                instrument='omni')

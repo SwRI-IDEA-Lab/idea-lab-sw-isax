@@ -311,11 +311,13 @@ def time_chunking_optimized(
         chunk_st = t[0][0] 
         chunk_et = t[-1][0] 
         chunk_file = np.unique(filename_df[chunk_st: chunk_et].values)
-        if chunk_file.shape[0]==2:
-            chunk_file = chunk_file[0]
-            chunk_filelist.append(chunk_file)
-        elif chunk_file.shape[0]==1:
-            chunk_filelist.append(chunk_file)   #taking the first file from the overlaping due to the 0.27s  
+        chunk_file = chunk_file[0]
+        chunk_filelist.append(chunk_file)
+        # if chunk_file.shape[0]==2:
+        #     chunk_file = chunk_file[0]
+        #     chunk_filelist.append(chunk_file)
+        # elif chunk_file.shape[0]==1:
+        #     chunk_filelist.append(chunk_file)   #taking the first file from the overlaping due to the 0.27s  
 
     if return_pandas:
         dfs = [
