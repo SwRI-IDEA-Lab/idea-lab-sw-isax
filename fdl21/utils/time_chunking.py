@@ -216,6 +216,32 @@ def time_chunking(
 
     return interp_time_seq, interp_mgn_seq, chunk_filelist
 
+def time_chunking_filterbanks(mag_df,
+                              cols,
+                              cadence = timedelta(seconds=300), 
+                              chunk_size = timedelta(seconds=3600), 
+                              overlap = timedelta(seconds=0),
+                              start_time = None, 
+                              end_time = None,
+                              kind = 'linear',
+                              detrend=False,
+                              detrend_window=timedelta(seconds=1800),
+                              smooth=False,
+                              smooth_window=timedelta(seconds=30),
+                              optimized = False,
+                              avg_sampling_rate=None,
+                              min_datapoints=0.5,
+                              return_pandas=False):
+    """Return segments that are each our time duration of choice (using filter banks)
+    
+    [description]
+    
+    Parameters
+    ----------
+    
+    """
+    pass
+
 
 def sliding_window(
     df,
