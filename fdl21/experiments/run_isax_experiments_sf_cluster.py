@@ -23,6 +23,7 @@ import hdbscan
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+import dill as pickle
 plt.style.use('default')
 # plt.style.use('ggplot')
 import matplotlib.dates as mdates
@@ -240,6 +241,13 @@ parser.add_argument(
     action='store_true'
 )
 
+parser.add_argument(
+    '-save_model',
+    help='Save isax_pipe object and clusters to pickle file',
+    default=False,
+    action='store_true'
+)
+
 def plot_cluster_fig(clusterer, expected_val, cluster_file='clusters.png', metric='euclidean'):
     
     projection = TSNE(metric=metric).fit_transform(expected_val)
@@ -411,7 +419,8 @@ def plot_cluster_curves(cluster,
                         cache=False,
                         cache_folder=None,
                         percentiles = [[10,90], [20,80], [30,70], [40,60]],
-                        instrument='psp'
+                        instrument='psp',
+                        units = 'B (nT)'
                         ):
     """Function to plot the curves and information associated with a cluster
 
@@ -488,8 +497,8 @@ def plot_cluster_curves(cluster,
     ax[2].yaxis.set_label_position("right")
     ax[2].yaxis.tick_right()
 
-    ax[0].set_ylabel('B (nT)')
-    ax[2].set_ylabel('B (nT)')
+    ax[0].set_ylabel(units)
+    ax[2].set_ylabel(units)
 
     ax[1].set_xlim(ax[0].get_xlim())
     ax[1].set_ylim(ax[0].get_ylim())
@@ -617,7 +626,7 @@ def build_cache(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'     
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1994_2023.csv'
+        catalog_fname = 'B_FS_PD/omni_master_catalog_1994_2023.csv'
 
     if instrument == 'omni':
         orbit_fname = None
@@ -630,7 +639,7 @@ def build_cache(
         instrument=instrument
     )
 
-    return isax_pipe_dummy.build_cache(
+    isax_pipe_dummy.build_cache(
             file=file,
             cadence=cadence,
             chunk_size=chunk_size,
@@ -644,6 +653,8 @@ def build_cache(
             cache_folder=cache_folder,
             instrument=instrument
         )
+
+    return isax_pipe_dummy.min_max
 
 def run_experiment(
     input_file = None,
@@ -677,7 +688,8 @@ def run_experiment(
     plot_cluster=False,
     parallel = False,
     recluster_iterations = 0,
-    set_largest_cluster_to_noncluster = False
+    set_largest_cluster_to_noncluster = False,
+    save_model = False
  ):
     """Run the iSAX experiment
 
@@ -717,14 +729,49 @@ def run_experiment(
         [description], by default 2
     detrend_window : int, optional
         [description], by default 1800
+    overlap : int, optional
+        [description], by default dt.timedelta(seconds=0)
     node_level_depth : int, optional
         [description], by default 16
-    min_node_size : int
-        Minimum node size to include in clustering
+    min_cluster_size : int, optional
+        [description], by default 5
+    min_samples : int, optional
+        [description], by default 5
+    cache : boolean, optional
+        [description], by default False
+    cache_folder : 'string', optional
+        [description], by default '/cache/'
     transliterate : int, optional
         [description], by default False
     instrument: string
-            instrument to analyze        
+            instrument to analyze   
+    cluster_selection_epsilon : [type], optional
+        [description], by default None
+    n_processes : int, optional
+        [description], by default 4
+    profiling : boolean, optional
+        [description], by default False
+    plot_cluster : boolean, optional
+        [description], by default False
+    parallel: boolean, optional
+        [description], by default False
+    recluster_iterations : int, optional
+        Number of times to recluster Cluster -1 independently. 
+        If 0, only does one initial cluster and never re-clusters cluster -1. 
+        If greater than 0, then reclusters that many iterations. 
+        If -1, "automatically" reclusters until reaches stability point 
+        (doesn't create any new clusters) or until reaches maximum iteration count criteria.
+        By default 0
+    set_largest_cluster_to_noncluster : boolean, optional
+        Not relevant if recluster_iterations=0. 
+        Sometimes when clustering, an extremely large cluster that does not necessarily have any 
+        meaningful patterns is created.
+        Indicate whether or not to recluster the largest cluster along with cluster -1.
+        By default False
+    save_model : boolean, optional
+        Indicate whether or not to save dictionaries of pipelines and clusters to pickle files 
+        for each component.
+        By default False
     """
     # Cluster selection epsilon text (for pdf filename)
     if cluster_selection_epsilon is None:
@@ -744,7 +791,7 @@ def run_experiment(
     elif instrument == 'wind':
         catalog_fname = 'wind_master_catalog_2006_2022.csv'
     elif instrument == 'omni':
-        catalog_fname = 'omni_master_catalog_1994_2023.csv'
+        catalog_fname = 'B_FS_PD/omni_master_catalog_1994_2023.csv'
 
     # Orbit file
     if instrument == 'omni':
@@ -808,7 +855,7 @@ def run_experiment(
         chunksize = int(np.ceil(len(flist_mp)/n_processes))
         if chunksize < 4:
             chunksize=1        
-        process_map(build_cache,
+        min_max = process_map(build_cache,
                     flist_mp,
                     cadence_mp,
                     chunk_size_mp,
@@ -850,7 +897,9 @@ def run_experiment(
                         detrend_window=detrend_window,
                         optimized=True,
                         cache_folder=cache_folder,
-                        instrument=instrument
+                        instrument=instrument,
+                        min_max = min_max[0],
+                        n_bins = 1000
                     )
                     # good_files.append(True)
                 except:
@@ -863,10 +912,11 @@ def run_experiment(
                     hist = isax_pipe.hist) 
 
         LOG.info('Recalculating mean and standard deviations.')
-        bins = isax_pipe.bins
-        delta = np.nanmedian(bins[1:]-bins[0:-1])
-        centers = (bins[1:]+bins[0:-1])/2
+        
         for component in ['x', 'y', 'z']:
+            bins = isax_pipe.bins[component]
+            delta = np.nanmedian(bins[1:]-bins[0:-1])
+            centers = (bins[1:]+bins[0:-1])/2
             hist = isax_pipe.hist[component]
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
@@ -953,6 +1003,9 @@ def run_experiment(
                                             }
     
     component_dict_wand = {}
+    units = {'x':'B (nT)',
+             'y':'Relative Speed (km/s)', 
+             'z':'Proton Density (#/$cm^3$)'}
     for component in ['x','y','z']:
 
         nodes_at_level = isax_pipe.sw_forest[component].forest[0].get_nodes_of_level_or_terminal(node_level_depth)
@@ -966,16 +1019,15 @@ def run_experiment(
             n_processes=n_processes
         )
         # (re)clustering iteration labels (hdbscan_clusters are all iteration = 0)
-        RI_label = [0]*(np.max(hdbscan_clusters.labels_)+1)
-
+        hdbscan_clusters_mask = (hdbscan_clusters.labels_>-1).nonzero()[0]
+        hdbscan_labels = np.unique(hdbscan_clusters.labels_[hdbscan_clusters_mask])
+        RI_label_list = [0]*(len(hdbscan_labels))
         ### recluster Cluster -1
         if recluster_iterations > 0:
             # create copy of 'original' clusters to reuse the indices for appropriate node indexing and labeling (w/o affecting 'original' cluster)
             reindexed_clusters = deepcopy(hdbscan_clusters)
 
             for i in range(recluster_iterations):
-                # save label of last cluster before reclustering
-                last_cluster_label_before = np.max(reindexed_clusters.labels_)
                 # recluster
                 reindexed_clusters = recluster_unclustered(reindexed_clusters=reindexed_clusters,
                                                             expected_val=expected_val,
@@ -984,17 +1036,23 @@ def run_experiment(
                                                             cluster_selection_epsilon=cluster_selection_epsilon,
                                                             set_largest_cluster_to_noncluster = set_largest_cluster_to_noncluster)
                 
-                # save label of last cluster after reclustering
-                last_cluster_label_after = np.max(reindexed_clusters.labels_)
-                # calculate number of new clusters
-                n_new_clusters = last_cluster_label_after - last_cluster_label_before
+                # mask of indices of clustered clusters (i.e. not including Cluster -1) in reindexed_clusters
+                reindexed_clusters_mask = (reindexed_clusters.labels_!=-1).nonzero()[0]
+                # list of cluster labels
+                cluster_labels = np.unique(reindexed_clusters.labels_[reindexed_clusters_mask])
 
-                # Update RI_label
-                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
+                # calculate number of new clusters
+                n_new_clusters = len(cluster_labels) - len(RI_label_list)
+
+                # Update RI_label_list
                 iteration_label = i+1
                 if set_largest_cluster_to_noncluster:
-                    RI_label[-1] = iteration_label
-                RI_label = RI_label + [iteration_label]*n_new_clusters
+                    RI_label_list[-1] = iteration_label
+
+                if n_new_clusters <0:
+                    RI_label_list = RI_label_list[:n_new_clusters]
+                else:
+                    RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
 
             clusters = reindexed_clusters
         elif set_largest_cluster_to_noncluster and recluster_iterations == -1:   
@@ -1026,12 +1084,10 @@ def run_experiment(
                 # calculate number of new clusters
                 n_new_clusters = last_cluster_label_after - last_cluster_label_before
 
-                # Update RI_label
-                # TODO: Fix RI_labels to be specific to new cluster labels from reclustering
+                # Update RI_label_list
                 iteration_label += 1
                 if set_largest_cluster_to_noncluster:
-                    RI_label[-1] = iteration_label
-                RI_label = RI_label + [iteration_label]*n_new_clusters
+                    RI_label_list[-1] = iteration_label
 
                 # Conditions for finding point of stability====================================
                 # There were two behaviors I noticed when reclustering iterations started stabilizing:
@@ -1048,7 +1104,13 @@ def run_experiment(
                     conditions[0] = True
                     saved_before_label = last_cluster_label_before
                     saved_before_nodes = expected_val[before_mask]
-                
+
+                    # Update RI_label_list accordingly
+                    RI_label_list = RI_label_list[:n_new_clusters]
+                else:
+                    # Just update RI_label_list and move on
+                    RI_label_list = RI_label_list + [iteration_label]*n_new_clusters
+
                 # if first condition is met, check second condition
                 if conditions[0] and last_cluster_label_after == saved_before_label:
                     # check nodes
@@ -1078,6 +1140,13 @@ def run_experiment(
                     component_annotations[component][f'cluster {component}'] += [cluster_n] * len(annotations['File'])        
                     component_annotations[component][f'p_node {component}'] += [node.short_name] * len(annotations['File'])        
 
+        if save_model:
+            model_dictionary = {'isax_pipe': isax_pipe,
+                                'hdbscan_clusters': hdbscan_clusters,
+                                'all_clusters': clusters}
+            
+            with open('runs/'+ pdf_file + '_' + f'{component}' + '_model-dictionary.pkl', 'wb') as f:
+                pickle.dump(model_dictionary,f)
 
         pdf_file_c = pdf_file + '_' + f'{component}' + '_clusters'  + '.pdf'
         if plot_cluster:
@@ -1088,8 +1157,8 @@ def run_experiment(
             for cluster_n in tqdm(np.arange(np.min(clusters.labels_), np.max(clusters.labels_)+1), 
                                         desc=f'Plotting nodes in {cluster_n} clusters...'):
 
-                fig_c = plot_cluster_curves(cluster_n,RI_label[cluster_n], clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
-                                            cache=cache,instrument=instrument, cache_folder=cache_folder)
+                fig_c = plot_cluster_curves(cluster_n,RI_label_list[cluster_n], clusters, component, node_level_depth, isax_pipe, colors=100, max_t = 2*chunk_size.seconds,
+                                            cache=cache,instrument=instrument, cache_folder=cache_folder,units=units[component])
                 pdf_c.savefig(fig_c, bbox_inches='tight', dpi=200)
                 plt.close(fig_c)
 
@@ -1188,7 +1257,7 @@ def run_experiment(
     plt.close(component_dict_wand[f'TSNE z'])
     plt.close('all')
 
-  
+
     
 if __name__ == "__main__":
     args = vars(parser.parse_args())

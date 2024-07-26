@@ -154,6 +154,7 @@ class iSaxPipeline(object):
             date_fmt
         )
         self.hist = None
+        self.min_max = None
         self._sw_forest = {'x': None, 'y': None, 'z': None, 'all': None}
         self._threshold = threshold
         self._ts = {'x': None, 'y': None, 'z': None, 'all': None}
@@ -398,22 +399,7 @@ class iSaxPipeline(object):
         LOG.debug(f'Average sampling rate for current dataset: {avg_sampling_rate:0.3f}')
         #cols = [col for col in self.mag_df.columns if 'mag' not in col.lower()]        
 
-        if optimized:
-                self.interp_mag_seq, self.interp_time_seq, self.chunk_filelist = tc.time_chunking_optimized(
-                    mag_df=mag_df,
-                    cols=cols,
-                    cadence=cadence,
-                    chunk_size=chunk_size,
-                    overlap=overlap,
-                    smooth=smooth,
-                    smooth_window=smooth_window,
-                    detrend=detrend,
-                    detrend_window=detrend_window, 
-                    avg_sampling_rate=avg_sampling_rate
-            )
-        else:
-            # Run the time chunking to generate our interpolated time series
-            self.interp_time_seq, self.interp_mag_seq, self.chunk_filelist = tc.time_chunking(
+        self.interp_time_seq, self.interp_mag_seq, self.chunk_filelist = tc.time_chunking(
                 mag_df=mag_df,
                 cols=cols,
                 cadence=cadence,
@@ -422,6 +408,7 @@ class iSaxPipeline(object):
                 smooth_window=smooth_window,
                 detrend=detrend,
                 detrend_window=detrend_window, 
+                optimized=optimized,
                 avg_sampling_rate=avg_sampling_rate
             )
         et_t = time.time()
@@ -783,8 +770,10 @@ class iSaxPipeline(object):
         detrend=True,
         detrend_window=dt.timedelta(seconds=1800),
         optimized = True,
-        hist_max=50,
-        bin_width=0.1,
+        min_max={'x':{'min':-50, 'max':50},
+                'y':{'min':-50, 'max':50},
+                'z':{'min':-50, 'max':50}},
+        n_bins=1000,
         cache_folder='/cache/',
         instrument='psp'      
     ):
@@ -838,12 +827,22 @@ class iSaxPipeline(object):
         try:
 
             self._paa = PiecewiseAggregateApproximation(self.word_size)
-            self.bins = np.arange(-hist_max,hist_max+2*bin_width,bin_width)-bin_width/2
+            self.bins = {}
+            for component in ['x', 'y', 'z']:
+                bin_min = min_max[component]['min']
+                bin_max = min_max[component]['max']
+                bin_width = (bin_max - bin_min)/(n_bins+1)               
+                self.bins[component] = np.arange(bin_min,bin_max+2*bin_width,bin_width)-bin_width/2
             
             if self.hist is None:
-                self.hist = {'x': np.zeros((self.bins.shape[0]-1)),      
-                            'y': np.zeros((self.bins.shape[0]-1)),      
-                            'z': np.zeros((self.bins.shape[0]-1))}
+                self.hist = {'x': np.zeros((self.bins['x'].shape[0]-1)),      
+                            'y': np.zeros((self.bins['y'].shape[0]-1)),      
+                            'z': np.zeros((self.bins['z'].shape[0]-1))}
+
+            if self.min_max is None:
+                self.min_max = {'x':{'min':None, 'max':None},
+                                'y':{'min':None, 'max':None},
+                                'z':{'min':None, 'max':None}}
 
             # update the dictionary with out input parameters
             self.input_parameters['rads_norm'] = rads_norm
@@ -905,8 +904,18 @@ class iSaxPipeline(object):
 
             # Calculate Histogram
             for component in ['x', 'y', 'z']:
-                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins)
+                hist, _ = np.histogram(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1), bins=self.bins[component])
                 self.hist[component] += hist
+
+                if self.min_max[component]['min'] is None:
+                    self.min_max[component]['min'] = np.min(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))
+                else:
+                    self.min_max[component]['min'] = np.min([self.min_max[component]['min'], np.min(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))])
+
+                if self.min_max[component]['max'] is None:
+                    self.min_max[component]['max'] = np.max(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))
+                else:
+                    self.min_max[component]['max'] = np.max([self.min_max[component]['max'], np.max(self._paa.fit_transform(self.ts[component].reshape(self.ts[component].shape + (1,))).reshape(-1))])
 
             return True
 

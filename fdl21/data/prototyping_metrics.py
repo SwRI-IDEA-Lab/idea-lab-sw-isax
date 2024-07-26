@@ -448,9 +448,16 @@ def read_OMNI_dataset(fname):
     mag_data = {}
 
     mag_data['B_mag'] = cdf_file['F']   # Mag. Avg. B-vector
-    for i in ['X','Y','Z']:
-        mag_data[f'B{i}_GSE'] = cdf_file[f'B{i}_GSE']
-    
+    # for i in ['X','Y','Z']:
+    #     mag_data[f'B{i}_GSE'] = cdf_file[f'B{i}_GSE']
+    # =================================================
+    # Quick solution to analyze other parameters (remove portion between lines, 
+    # and uncomment above two lines to return to IMF analysis only)
+    # TODO: Implement more long term solution to analyze other SW parameters
+    mag_data['BX_GSE'] = cdf_file['F']
+    mag_data['BY_GSE'] = cdf_file['flow_speed']
+    mag_data['BZ_GSE'] = cdf_file['proton_density']
+    # =================================================
     # Datetime Index
     dates = convert_OMNI_EPOCH(cdf_file)
     mag_df = pd.DataFrame(mag_data,index=pd.DatetimeIndex(dates)).sort_index()
