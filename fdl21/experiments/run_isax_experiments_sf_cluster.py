@@ -869,8 +869,7 @@ def run_experiment(
 
     # Running the cache twice to calculate the histogram, means and stds
     if cache:
-        # bad_files = []
-        # good_files = []
+        good_files = []
 
         # Check if a histogram cache file already exists
         histogram_file = cache_folder + run_prefix + '_hist_' + str(len(flist)) + '.npz'
@@ -884,8 +883,7 @@ def run_experiment(
             for file in tqdm(flist, desc=f'Creating file caches and histograms...'):
                 isax_pipe.mag_df = None
 
-                try:
-                    isax_pipe.build_cache(
+                good_files.append(isax_pipe.build_cache(
                         file=file,
                         cadence=cadence,
                         chunk_size=chunk_size,
@@ -900,12 +898,7 @@ def run_experiment(
                         instrument=instrument,
                         min_max = min_max[0],
                         n_bins = 1000
-                    )
-                    # good_files.append(True)
-                except:
-                    pass
-                    # bad_files.append(file)
-                    # good_files.append(False)
+                    ))
 
             np.savez(histogram_file, 
                     bins = {'bins': isax_pipe.bins},
