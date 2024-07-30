@@ -167,7 +167,6 @@ class iSaxPipeline(object):
             'max_cardinality': self.max_cardinality,
             'files_analyzed': None,
             'rads_norm': None,
-            'files_analyzed': None,
             'cadence': None,
             'chunk_size': None,
             'overlap': None,
