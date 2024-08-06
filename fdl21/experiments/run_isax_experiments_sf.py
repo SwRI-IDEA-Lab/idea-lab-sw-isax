@@ -87,6 +87,13 @@ parser.add_argument(
     type=int
 )
 parser.add_argument(
+    '-preprocess',
+    default='smooth_detrend',
+    help='Preprocessing method to apply to raw data (smoothing/detrending or filterbank filters)',
+    type=str
+)
+
+parser.add_argument(
     '-detrend_window',
     default=1800,
     help=(
@@ -687,6 +694,7 @@ def run_experiment(
                             [cadence],
                             [chunk_size],
                             [overlap],
+                            [preprocess],
                             [smooth_window],
                             [detrend_window],
                             [cache_folder],
@@ -697,6 +705,7 @@ def run_experiment(
         cadence_mp,
         chunk_size_mp,
         overlap_mp,
+        preprocess_mp,
         smooth_window_mp,
         detrend_window_mp,
         cache_folder_mp,
@@ -712,6 +721,7 @@ def run_experiment(
                     cadence_mp,
                     chunk_size_mp,
                     overlap_mp,
+                    preprocess_mp,
                     smooth_window_mp,
                     detrend_window_mp,
                     cache_folder_mp,
@@ -754,10 +764,11 @@ def run_experiment(
                     hist = isax_pipe.hist) 
 
         LOG.info('Recalculating mean and standard deviations.')
-        bins = isax_pipe.bins
-        delta = np.nanmedian(bins[1:]-bins[0:-1])
-        centers = (bins[1:]+bins[0:-1])/2
+        
         for component in ['x', 'y', 'z']:
+            bins = isax_pipe.bins[component]
+            delta = np.nanmedian(bins[1:]-bins[0:-1])
+            centers = (bins[1:]+bins[0:-1])/2
             hist = isax_pipe.hist[component]
             mu = np.sum(centers*hist*delta)/np.sum(hist*delta)
             
