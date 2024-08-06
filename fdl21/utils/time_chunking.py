@@ -42,6 +42,87 @@ def datetime_range(start, end, delta):
         results.append(curr)
     return pd.Series(results)
 
+def filter_preprocess(mag_df,
+                      cols,
+                      cadence = timedelta(seconds=300),
+                      frequency_weights=[],
+                      frequency_spectrum=[],
+                      avg_sampling_rate=None
+                      ):
+    """Preprocess mag_df using fft filters
+    
+    Parameters
+    ----------
+    
+    """
+    mag_df=mag_df[cols]
+    mag_df.sort_index(inplace=True)
+    df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
+    # FFT
+    sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
+
+    if avg_sampling_rate is None:
+        avg_sampling_rate = 1.0 #default for scipy.fft.fftfreq()
+    sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
+
+    # filter (create and apply)
+    mb_filter =  np.interp(np.abs(sample_freq),frequency_spectrum,frequency_weights,left=None,right=None,period=None)
+    filteredYF = np.transpose(sig_fft_df.T*mb_filter)
+    filtered_signal = np.real(fft.ifftn(filteredYF,axes=0))
+
+    preprocessed_mag_df = pd.DataFrame(filtered_signal,columns=cols,index=df_index)
+
+    return preprocessed_mag_df
+
+
+def sliding_window(
+    df,
+    cols,
+    chunk_size = timedelta(minutes=5),
+    overlap = timedelta(minutes=0),
+    cadence = timedelta(seconds=1)
+):
+    """a sliding window to create smaller timeseries
+    
+    Parameters:
+    ----------
+    df: pandas dataframe
+        input timeseries
+    bins: time window
+        number of minutes (default= 5) to 
+        take for the window function
+    step: stride size
+        decides the overlapp between the sliding
+        window
+        default is 2 minutes
+
+    Returns
+    -------
+    chunk_list: list of dataframes
+        a list containing the sliced dataframes
+    """
+    if overlap.seconds == 0:
+        overlap = chunk_size
+
+    df = df[cols]
+    chunk_mag = []
+    chunk_time = []
+    start = df.index[0]
+    stop = df.index[-1]
+    while start <= (stop-chunk_size):
+        data = df[start: start+chunk_size]
+        # idx = (start <= df.index) & (df.index < start+bins)
+        time_chunk = np.array(
+            pd.date_range(
+                start=data.index[0], end=data.index[-1], freq=cadence
+            )
+        )
+        chunk_time.append(
+            time_chunk
+        )
+        chunk_mag.append(data.values)
+        start += overlap
+    return np.array(chunk_mag), np.array(chunk_time)
 
 def time_chunking(
     mag_df,
@@ -214,85 +295,3 @@ def time_chunking(
         return dfs
 
     return interp_time_seq, interp_mgn_seq, chunk_filelist
-
-def filter_preprocess(mag_df,
-                      cols,
-                      cadence = timedelta(seconds=300),
-                      frequency_weights=[],
-                      frequency_spectrum=[],
-                      avg_sampling_rate=None
-                      ):
-    """Preprocess mag_df using fft filters
-    
-    Parameters
-    ----------
-    
-    """
-    mag_df=mag_df[cols]
-    mag_df.sort_index(inplace=True)
-    df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
-    # FFT
-    sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
-
-    if avg_sampling_rate is None:
-        avg_sampling_rate = 1.0 #default for scipy.fft.fftfreq()
-    sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
-
-    # filter (create and apply)
-    mb_filter =  np.interp(np.abs(sample_freq),frequency_spectrum,frequency_weights,left=None,right=None,period=None)
-    filteredYF = np.transpose(sig_fft_df.T*mb_filter)
-    filtered_signal = np.real(fft.ifftn(filteredYF,axes=0))
-
-    preprocessed_mag_df = pd.DataFrame(filtered_signal,columns=cols,index=df_index)
-
-    return preprocessed_mag_df
-
-
-def sliding_window(
-    df,
-    cols,
-    chunk_size = timedelta(minutes=5),
-    overlap = timedelta(minutes=0),
-    cadence = timedelta(seconds=1)
-):
-    """a sliding window to create smaller timeseries
-    
-    Parameters:
-    ----------
-    df: pandas dataframe
-        input timeseries
-    bins: time window
-        number of minutes (default= 5) to 
-        take for the window function
-    step: stride size
-        decides the overlapp between the sliding
-        window
-        default is 2 minutes
-
-    Returns
-    -------
-    chunk_list: list of dataframes
-        a list containing the sliced dataframes
-    """
-    if overlap.seconds == 0:
-        overlap = chunk_size
-
-    df = df[cols]
-    chunk_mag = []
-    chunk_time = []
-    start = df.index[0]
-    stop = df.index[-1]
-    while start <= (stop-chunk_size):
-        data = df[start: start+chunk_size]
-        # idx = (start <= df.index) & (df.index < start+bins)
-        time_chunk = np.array(
-            pd.date_range(
-                start=data.index[0], end=data.index[-1], freq=cadence
-            )
-        )
-        chunk_time.append(
-            time_chunk
-        )
-        chunk_mag.append(data.values)
-        start += overlap
-    return np.array(chunk_mag), np.array(chunk_time)
