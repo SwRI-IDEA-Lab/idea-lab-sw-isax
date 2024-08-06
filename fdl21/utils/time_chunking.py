@@ -71,13 +71,13 @@ def preprocess_smooth_detrend(mag_df,
     
     return mag_df
 
-def filter_preprocess(mag_df,
-                      cols,
-                      cadence = timedelta(seconds=300),
-                      frequency_weights=[],
-                      frequency_spectrum=[],
-                      avg_sampling_rate=None
-                      ):
+def preprocess_fft_filter(mag_df,
+                          cols,
+                          cadence = timedelta(seconds=300),
+                          frequency_weights=[],
+                          frequency_spectrum=[],
+                          avg_sampling_rate=None
+                          ):
     """Preprocess mag_df using fft filters
     
     Parameters
