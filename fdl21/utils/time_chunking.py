@@ -162,7 +162,11 @@ def get_sequences(mag_df,
                   end_time = None,
                   kind = 'linear',
                   optimized = False):
+    """Interpolate data and time sequences
     
+    Parameters
+    ----------
+    """
     if optimized:
         interp_mag_df = pd.DataFrame(
         index=pd.date_range(
@@ -210,8 +214,6 @@ def get_sequences(mag_df,
             kind = kind,
             fill_value = 'extrapolate'
         )    
-        #files = filename_df[start_time: end_time] 
-        #print(files)
 
         # Creating time interval from start time and end time and interpolating
         interp_time = datetime_range(start_time, end_time, cadence)
