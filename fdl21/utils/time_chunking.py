@@ -6,6 +6,7 @@ from scipy.linalg._misc import _datacopied
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy import fft
 
 # Initialize Python Logger
 logging.basicConfig(format='%(levelname)-4s '
@@ -214,31 +215,37 @@ def time_chunking(
 
     return interp_time_seq, interp_mgn_seq, chunk_filelist
 
-def time_chunking_filterbanks(mag_df,
-                              cols,
-                              cadence = timedelta(seconds=300), 
-                              chunk_size = timedelta(seconds=3600), 
-                              overlap = timedelta(seconds=0),
-                              start_time = None, 
-                              end_time = None,
-                              kind = 'linear',
-                              detrend=False,
-                              detrend_window=timedelta(seconds=1800),
-                              smooth=False,
-                              smooth_window=timedelta(seconds=30),
-                              optimized = False,
-                              avg_sampling_rate=None,
-                              min_datapoints=0.5,
-                              return_pandas=False):
-    """Return segments that are each our time duration of choice (using filter banks)
-    
-    [description]
+def filter_preprocess(mag_df,
+                      cols,
+                      cadence = timedelta(seconds=300),
+                      frequency_weights=[],
+                      frequency_spectrum=[],
+                      avg_sampling_rate=None
+                      ):
+    """Preprocess mag_df using fft filters
     
     Parameters
     ----------
     
     """
-    pass
+    mag_df=mag_df[cols]
+    mag_df.sort_index(inplace=True)
+    df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
+    # FFT
+    sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
+
+    if avg_sampling_rate is None:
+        avg_sampling_rate = 1.0 #default for scipy.fft.fftfreq()
+    sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
+
+    # filter (create and apply)
+    mb_filter =  np.interp(np.abs(sample_freq),frequency_spectrum,frequency_weights,left=None,right=None,period=None)
+    filteredYF = np.transpose(sig_fft_df.T*mb_filter)
+    filtered_signal = np.real(fft.ifftn(filteredYF,axes=0))
+
+    preprocessed_mag_df = pd.DataFrame(filtered_signal,columns=cols,index=df_index)
+
+    return preprocessed_mag_df
 
 
 def sliding_window(
