@@ -170,9 +170,8 @@ class iSaxPipeline(object):
             'cadence': None,
             'chunk_size': None,
             'overlap': None,
-            'smooth': None,
+            'preprocess': None,
             'smooth_window': None,
-            'detrend': None,
             'detrend_window': None,
             'optimized': None          
         }
@@ -357,10 +356,9 @@ class iSaxPipeline(object):
         cadence=dt.timedelta(seconds=1),
         chunk_size=dt.timedelta(seconds=300),
         overlap = dt.timedelta(seconds=0),
-        smooth=True,
-        smooth_window=60,
-        detrend=True,
-        detrend_window=1800,
+        preprocess=None,
+        smooth_window=dt.timedelta(seconds=60),
+        detrend_window=dt.timedelta(seconds=1800),
         optimized=False,
         verbose=True
     ):
@@ -403,9 +401,8 @@ class iSaxPipeline(object):
                 cols=cols,
                 cadence=cadence,
                 chunk_size=chunk_size,
-                smooth=smooth,
+                preprocess=preprocess,
                 smooth_window=smooth_window,
-                detrend=detrend,
                 detrend_window=detrend_window, 
                 optimized=optimized
             )
@@ -763,9 +760,8 @@ class iSaxPipeline(object):
         chunk_size=dt.timedelta(seconds=300),
         overlap=dt.timedelta(seconds=0),
         rads_norm=True,
-        smooth=True,
+        preprocess = None,
         smooth_window=dt.timedelta(seconds=5),
-        detrend=True,
         detrend_window=dt.timedelta(seconds=1800),
         optimized = True,
         min_max={'x':{'min':-50, 'max':50},
@@ -848,9 +844,8 @@ class iSaxPipeline(object):
             self.input_parameters['cadence'] = cadence.seconds
             self.input_parameters['chunk_size'] = chunk_size.seconds
             self.input_parameters['overlap'] = overlap.seconds
-            self.input_parameters['smooth'] = smooth
+            self.input_parameters['preprocess'] = preprocess
             self.input_parameters['smooth_window'] = smooth_window.seconds
-            self.input_parameters['detrend'] = detrend
             self.input_parameters['detrend_window'] = detrend_window.seconds
             self.input_parameters['optimized'] = optimized
 
@@ -876,9 +871,8 @@ class iSaxPipeline(object):
                     cadence = cadence,
                     chunk_size = chunk_size,
                     overlap = overlap,
-                    smooth = smooth,
+                    preprocess=preprocess,
                     smooth_window = smooth_window,
-                    detrend = detrend,
                     detrend_window = detrend_window,
                     optimized = optimized
                 )
@@ -928,9 +922,8 @@ class iSaxPipeline(object):
         chunk_size=dt.timedelta(seconds=300),
         overlap=dt.timedelta(seconds=0),
         rads_norm=True,
-        smooth=True,
+        preprocess = None,
         smooth_window=dt.timedelta(seconds=5),
-        detrend=True,
         detrend_window=dt.timedelta(seconds=1800),
         optimized = False, 
         parallel = True,
@@ -996,9 +989,8 @@ class iSaxPipeline(object):
             self.input_parameters['cadence'] = cadence.seconds
             self.input_parameters['chunk_size'] = chunk_size.seconds
             self.input_parameters['overlap'] = overlap.seconds
-            self.input_parameters['smooth'] = smooth
+            self.input_parameters['preprocess'] = preprocess
             self.input_parameters['smooth_window'] = smooth_window.seconds
-            self.input_parameters['detrend'] = detrend
             self.input_parameters['detrend_window'] = detrend_window.seconds
             self.input_parameters['optimized'] = optimized        
 
@@ -1011,9 +1003,8 @@ class iSaxPipeline(object):
                 cadence = cadence,
                 chunk_size = chunk_size,
                 overlap = overlap,
-                smooth = smooth,
+                preprocess=preprocess,
                 smooth_window = smooth_window,
-                detrend = detrend,
                 detrend_window = detrend_window,
                 optimized = optimized
             )
@@ -1086,9 +1077,8 @@ class iSaxPipeline(object):
                 cadence = dt.timedelta(seconds=self.input_parameters['cadence']),
                 chunk_size = dt.timedelta(seconds=self.input_parameters['chunk_size']),
                 overlap = dt.timedelta(seconds=self.input_parameters['overlap']),
-                smooth = self.input_parameters['smooth'],
+                preprocess= self.input_parameters['preprocess'],
                 smooth_window = dt.timedelta(seconds=self.input_parameters['smooth_window']),
-                detrend = self.input_parameters['detrend'],
                 detrend_window = dt.timedelta(seconds=self.input_parameters['detrend_window']),
                 optimized = self.input_parameters['optimized'],
                 verbose=False

@@ -54,22 +54,23 @@ def preprocess_smooth_detrend(mag_df,
     """
     mag_df=mag_df[cols]
     mag_df.sort_index(inplace=True)
+    preprocessed_mag_df = mag_df.copy()
 
     if detrend_window > timedelta(seconds=0):
         LOG.debug('Detrending')
-        smoothed = mag_df.rolling(detrend_window,
+        smoothed = preprocessed_mag_df.rolling(detrend_window,
             center=True
         ).mean()
         # Subtract the detrend_window (e.g. 30 minutes or 1800s) to detrend
-        mag_df = mag_df - smoothed
+        preprocessed_mag_df = preprocessed_mag_df - smoothed
 
     if smooth_window > timedelta(seconds=0):
         LOG.debug('Smoothing')
-        mag_df = mag_df.rolling(smooth_window,
+        preprocessed_mag_df = preprocessed_mag_df.rolling(smooth_window,
             center=True
         ).mean()
     
-    return mag_df
+    return preprocessed_mag_df
 
 def preprocess_fft_filter(mag_df,
                           cols,
@@ -162,11 +163,9 @@ def time_chunking(
     start_time = None, 
     end_time = None,
     kind = 'linear',
-    detrend=False,
-    detrend_window=timedelta(seconds=1800),
-    smooth=False,
-    smooth_window=timedelta(seconds=30),
     preprocess = None,
+    detrend_window=timedelta(seconds=1800),
+    smooth_window=timedelta(seconds=30),
     optimized = False,
     return_pandas=False
 ):
@@ -233,19 +232,14 @@ def time_chunking(
     filename_df = mag_df['filename'] 
     mag_df=mag_df[cols]
     mag_df.sort_index(inplace=True)
-    if detrend:
-        LOG.debug('Detrending')
-        smoothed = mag_df.rolling(detrend_window,
-            center=True
-        ).mean()
-        # Subtract the detrend_window (e.g. 30 minutes or 1800s) to detrend
-        mag_df = mag_df - smoothed
+    
+    smooth_or_detrend = ['smooth','detrend','smooth_detrend','detrend_smooth']
+    if preprocess in smooth_or_detrend:
+        mag_df = preprocess_smooth_detrend(mag_df=mag_df,
+                                           cols=cols,
+                                           detrend_window=detrend_window,
+                                           smooth_window=smooth_window)
 
-    if smooth:
-        LOG.debug('Smoothing')
-        mag_df = mag_df.rolling(smooth_window,
-            center=True
-        ).mean()
     
     if optimized:
         interp_mag_df = pd.DataFrame(
