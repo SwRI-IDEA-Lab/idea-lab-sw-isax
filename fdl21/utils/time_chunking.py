@@ -42,6 +42,35 @@ def datetime_range(start, end, delta):
         results.append(curr)
     return pd.Series(results)
 
+def preprocess_smooth_detrend(mag_df,
+                              cols,
+                              detrend_window=timedelta(seconds=1800),
+                              smooth_window=timedelta(seconds=30)):
+    """Preprocess using smoothing and detrending window
+    
+    Parameters
+    ----------
+
+    """
+    mag_df=mag_df[cols]
+    mag_df.sort_index(inplace=True)
+
+    if detrend_window > timedelta(seconds=0):
+        LOG.debug('Detrending')
+        smoothed = mag_df.rolling(detrend_window,
+            center=True
+        ).mean()
+        # Subtract the detrend_window (e.g. 30 minutes or 1800s) to detrend
+        mag_df = mag_df - smoothed
+
+    if smooth_window > timedelta(seconds=0):
+        LOG.debug('Smoothing')
+        mag_df = mag_df.rolling(smooth_window,
+            center=True
+        ).mean()
+    
+    return mag_df
+
 def filter_preprocess(mag_df,
                       cols,
                       cadence = timedelta(seconds=300),
@@ -137,6 +166,7 @@ def time_chunking(
     detrend_window=timedelta(seconds=1800),
     smooth=False,
     smooth_window=timedelta(seconds=30),
+    preprocess = None,
     optimized = False,
     return_pandas=False
 ):
