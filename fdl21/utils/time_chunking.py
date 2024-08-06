@@ -233,6 +233,7 @@ def time_chunking(
     mag_df=mag_df[cols]
     mag_df.sort_index(inplace=True)
     
+    # Data Preprocessing
     smooth_or_detrend = ['smooth','detrend','smooth_detrend','detrend_smooth']
     if preprocess in smooth_or_detrend:
         mag_df = preprocess_smooth_detrend(mag_df=mag_df,
@@ -240,7 +241,7 @@ def time_chunking(
                                            detrend_window=detrend_window,
                                            smooth_window=smooth_window)
 
-    
+    # Get interpolated sequences
     if optimized:
         interp_mag_df = pd.DataFrame(
         index=pd.date_range(
@@ -299,7 +300,8 @@ def time_chunking(
 
         interp_mgn_seq = interp_mgn[0:int(interp_mgn.shape[0]/npoints)*npoints].reshape((-1, npoints, 3))
         interp_time_seq = interp_time[0:int(interp_time.shape[0]/npoints)*npoints].values.reshape((-1, npoints, 1))
-        
+
+    # List of chunked files
     chunk_filelist = []
     for t in interp_time_seq:
         #print(t[0], t[-1])
