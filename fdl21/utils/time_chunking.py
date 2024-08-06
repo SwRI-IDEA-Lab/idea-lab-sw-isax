@@ -104,7 +104,6 @@ def preprocess_fft_filter(mag_df,
 
     return preprocessed_mag_df
 
-
 def sliding_window(
     df,
     cols,
@@ -153,6 +152,77 @@ def sliding_window(
         chunk_mag.append(data.values)
         start += overlap
     return np.array(chunk_mag), np.array(chunk_time)
+
+def get_sequences(mag_df,
+                  cols,
+                  cadence = timedelta(seconds=300), 
+                  chunk_size = timedelta(seconds=3600), 
+                  overlap = timedelta(seconds=0),
+                  start_time = None,
+                  end_time = None,
+                  kind = 'linear',
+                  optimized = False):
+    
+    if optimized:
+        interp_mag_df = pd.DataFrame(
+        index=pd.date_range(
+            start=mag_df.index[0], end=mag_df.index[-1], freq=cadence
+        )
+        )
+        # The interpolated and smoothed magnetic field
+        interp_mag_df = (
+            mag_df
+            .reindex(mag_df.index.union(interp_mag_df.index))
+            .interpolate(method='index', kind='linear')
+            .reindex(interp_mag_df.index)
+        )
+
+        interp_mgn_seq, interp_time_seq = sliding_window(
+            df = interp_mag_df, 
+            cols = cols,
+            chunk_size = chunk_size,
+            overlap = overlap,
+            cadence = cadence
+        )
+
+        interp_time_seq = interp_time_seq.reshape((interp_time_seq.shape[0], interp_time_seq.shape[1], 1))
+
+    else:
+        # Reshape input into correct format for time chunking magic
+        mgn_variable = mag_df[cols].values
+        time_variable = mag_df.index.to_series()
+
+        # removing nan values from data
+        nan_remover = np.isfinite(np.sum(mgn_variable, axis = 1))   # returns where nans are present in the data
+        mgn_variable = mgn_variable[nan_remover]    # returns mgn_variable devoid of nans 
+        time_variable = time_variable[nan_remover]
+
+        # Assigning start and end times of segement's time duration
+        if start_time == None:
+            start_time = time_variable.iloc[0]
+        if end_time == None:
+            end_time = time_variable.iloc[-1]
+
+        interp_function = interp1d(
+            (time_variable-start_time).apply(lambda x: x.total_seconds()),
+            mgn_variable,
+            axis = 0,
+            kind = kind,
+            fill_value = 'extrapolate'
+        )    
+        #files = filename_df[start_time: end_time] 
+        #print(files)
+
+        # Creating time interval from start time and end time and interpolating
+        interp_time = datetime_range(start_time, end_time, cadence)
+        interp_mgn = interp_function((interp_time-start_time).apply(lambda x: x.total_seconds()))
+
+        npoints = int(np.round(chunk_size/cadence))
+
+        interp_mgn_seq = interp_mgn[0:int(interp_mgn.shape[0]/npoints)*npoints].reshape((-1, npoints, 3))
+        interp_time_seq = interp_time[0:int(interp_time.shape[0]/npoints)*npoints].values.reshape((-1, npoints, 1))
+
+    return interp_time_seq, interp_mgn_seq
 
 def time_chunking(
     mag_df,
@@ -242,65 +312,15 @@ def time_chunking(
                                            smooth_window=smooth_window)
 
     # Get interpolated sequences
-    if optimized:
-        interp_mag_df = pd.DataFrame(
-        index=pd.date_range(
-            start=mag_df.index[0], end=mag_df.index[-1], freq=cadence
-        )
-        )
-        # The interpolated and smoothed magnetic field
-        interp_mag_df = (
-            mag_df
-            .reindex(mag_df.index.union(interp_mag_df.index))
-            .interpolate(method='index', kind='linear')
-            .reindex(interp_mag_df.index)
-        )
-
-        interp_mgn_seq, interp_time_seq = sliding_window(
-            df = interp_mag_df, 
-            cols = cols,
-            chunk_size = chunk_size,
-            overlap = overlap,
-            cadence = cadence
-        )
-
-        interp_time_seq = interp_time_seq.reshape((interp_time_seq.shape[0], interp_time_seq.shape[1], 1))
-
-    else:
-        # Reshape input into correct format for time chunking magic
-        mgn_variable = mag_df[cols].values
-        time_variable = mag_df.index.to_series()
-
-        # removing nan values from data
-        nan_remover = np.isfinite(np.sum(mgn_variable, axis = 1))   # returns where nans are present in the data
-        mgn_variable = mgn_variable[nan_remover]    # returns mgn_variable devoid of nans 
-        time_variable = time_variable[nan_remover]
-
-        # Assigning start and end times of segement's time duration
-        if start_time == None:
-            start_time = time_variable.iloc[0]
-        if end_time == None:
-            end_time = time_variable.iloc[-1]
-
-        interp_function = interp1d(
-            (time_variable-start_time).apply(lambda x: x.total_seconds()),
-            mgn_variable,
-            axis = 0,
-            kind = kind,
-            fill_value = 'extrapolate'
-        )    
-        #files = filename_df[start_time: end_time] 
-        #print(files)
-
-        # Creating time interval from start time and end time and interpolating
-        interp_time = datetime_range(start_time, end_time, cadence)
-        interp_mgn = interp_function((interp_time-start_time).apply(lambda x: x.total_seconds()))
-
-        npoints = int(np.round(chunk_size/cadence))
-
-        interp_mgn_seq = interp_mgn[0:int(interp_mgn.shape[0]/npoints)*npoints].reshape((-1, npoints, 3))
-        interp_time_seq = interp_time[0:int(interp_time.shape[0]/npoints)*npoints].values.reshape((-1, npoints, 1))
-
+    interp_time_seq,interp_mag_seq = get_sequences(mag_df=mag_df,
+                                                   cols=cols,
+                                                   cadence=cadence,
+                                                   chunk_size=chunk_size,
+                                                   overlap=overlap,
+                                                   start_time=start_time,
+                                                   end_time=end_time,
+                                                   kind=kind,
+                                                   optimized=optimized)
     # List of chunked files
     chunk_filelist = []
     for t in interp_time_seq:
@@ -316,8 +336,8 @@ def time_chunking(
     if return_pandas:
         dfs = [
             pd.DataFrame(val, columns=cols, index=t.flatten()) 
-            for t, val in zip(interp_time_seq, interp_mgn_seq)
+            for t, val in zip(interp_time_seq, interp_mag_seq)
         ]
         return dfs
 
-    return interp_time_seq, interp_mgn_seq, chunk_filelist
+    return interp_time_seq, interp_mag_seq, chunk_filelist
