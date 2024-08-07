@@ -75,8 +75,8 @@ def preprocess_smooth_detrend(mag_df,
 def preprocess_fft_filter(mag_df,
                           cols,
                           cadence = timedelta(seconds=300),
-                          frequency_weights=[],
-                          frequency_spectrum=[],
+                          frequency_weights=np.array([]),
+                          frequency_spectrum=np.array([]),
                           avg_sampling_rate=None
                           ):
     """Preprocess mag_df using fft filters
@@ -96,6 +96,17 @@ def preprocess_fft_filter(mag_df,
     sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
 
     # filter (create and apply)
+    if frequency_weights.size == 0:
+        # based on melbank matrices but still generally arbitrary
+        step = 0.05
+        up = np.arange(0,1,step)
+        down = np.arange(1,0-step,-step)
+        weights = np.concatenate((up,down),axis=0)
+        zeros = np.zeros(mag_df.shape[0] - len(weights))
+        frequency_weights = np.concatenate((weights,zeros),axis=0)
+    if frequency_spectrum.size == 0:
+        frequency_spectrum = np.linspace(0,8000,mag_df.shape[0])
+
     mb_filter =  np.interp(np.abs(sample_freq),frequency_spectrum,frequency_weights,left=None,right=None,period=None)
     filteredYF = np.transpose(sig_fft_df.T*mb_filter)
     filtered_signal = np.real(fft.ifftn(filteredYF,axes=0))
@@ -238,6 +249,9 @@ def time_chunking(
     preprocess = None,
     detrend_window=timedelta(seconds=1800),
     smooth_window=timedelta(seconds=30),
+    frequency_weights=np.array([]),
+    frequency_spectrum=np.array([]),
+    avg_sampling_rate=None,
     optimized = False,
     return_pandas=False
 ):
@@ -312,7 +326,13 @@ def time_chunking(
                                            cols=cols,
                                            detrend_window=detrend_window,
                                            smooth_window=smooth_window)
-
+    elif preprocess == 'filter':
+        mag_df = preprocess_fft_filter(mag_df=mag_df,
+                                       cols=cols,
+                                       cadence=cadence,
+                                       frequency_weights=frequency_weights,
+                                       frequency_spectrum=frequency_spectrum,
+                                       avg_sampling_rate=avg_sampling_rate)
     # Get interpolated sequences
     interp_time_seq,interp_mag_seq = get_sequences(mag_df=mag_df,
                                                    cols=cols,
