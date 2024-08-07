@@ -33,7 +33,7 @@ import datetime as dt
 import os
 os.chdir('/home/jasminekobayashi/gh_repos/idea-lab-sw-isax')
 import fdl21.data.prototyping_metrics as pm
-
+import fdl21.utils.time_chunking as tc
 # %% Load test OMNI data
 omni_path = '/mnt/c/sw-data/nasaomnireader/'
 year = '2019'
