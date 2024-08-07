@@ -173,6 +173,8 @@ class iSaxPipeline(object):
             'preprocess': None,
             'smooth_window': None,
             'detrend_window': None,
+            'frequency_weights': None,
+            'frequency_spectrum': None,
             'optimized': None          
         }
 
@@ -359,6 +361,8 @@ class iSaxPipeline(object):
         preprocess=None,
         smooth_window=dt.timedelta(seconds=60),
         detrend_window=dt.timedelta(seconds=1800),
+        frequency_weights=np.array([]),
+        frequency_spectrum=np.array([]),
         optimized=False,
         verbose=True
     ):
@@ -403,7 +407,10 @@ class iSaxPipeline(object):
                 chunk_size=chunk_size,
                 preprocess=preprocess,
                 smooth_window=smooth_window,
-                detrend_window=detrend_window, 
+                detrend_window=detrend_window,
+                frequency_weights=frequency_weights,
+                frequency_spectrum=frequency_spectrum,
+                avg_sampling_rate=avg_sampling_rate, 
                 optimized=optimized
             )
         et_t = time.time()
@@ -763,6 +770,8 @@ class iSaxPipeline(object):
         preprocess = None,
         smooth_window=dt.timedelta(seconds=5),
         detrend_window=dt.timedelta(seconds=1800),
+        frequency_weights=np.array([]),
+        frequency_spectrum=np.array([]),
         optimized = True,
         min_max={'x':{'min':-50, 'max':50},
                 'y':{'min':-50, 'max':50},
@@ -847,6 +856,8 @@ class iSaxPipeline(object):
             self.input_parameters['preprocess'] = preprocess
             self.input_parameters['smooth_window'] = smooth_window.seconds
             self.input_parameters['detrend_window'] = detrend_window.seconds
+            self.input_parameters['frequency_weights'] = frequency_weights.tolist()
+            self.input_parameters['frequency_spectrum'] = frequency_spectrum.tolist()
             self.input_parameters['optimized'] = optimized
 
             # Check if the cache file already exists
@@ -874,6 +885,8 @@ class iSaxPipeline(object):
                     preprocess=preprocess,
                     smooth_window = smooth_window,
                     detrend_window = detrend_window,
+                    frequency_weights=frequency_weights,
+                    frequency_spectrum=frequency_spectrum,
                     optimized = optimized
                 )
 
@@ -925,6 +938,8 @@ class iSaxPipeline(object):
         preprocess = None,
         smooth_window=dt.timedelta(seconds=5),
         detrend_window=dt.timedelta(seconds=1800),
+        frequency_weights=np.array([]),
+        frequency_spectrum=np.array([]),
         optimized = False, 
         parallel = True,
         cache=False,
@@ -992,6 +1007,8 @@ class iSaxPipeline(object):
             self.input_parameters['preprocess'] = preprocess
             self.input_parameters['smooth_window'] = smooth_window.seconds
             self.input_parameters['detrend_window'] = detrend_window.seconds
+            self.input_parameters['frequency_weights'] = frequency_weights.tolist()
+            self.input_parameters['frequency_spectrum'] = frequency_spectrum.tolist()
             self.input_parameters['optimized'] = optimized        
 
             cols = [val for val in self.mag_df.columns if 'mag' not in val]
@@ -1006,6 +1023,8 @@ class iSaxPipeline(object):
                 preprocess=preprocess,
                 smooth_window = smooth_window,
                 detrend_window = detrend_window,
+                frequency_weights=frequency_weights,
+                frequency_spectrum=frequency_spectrum,
                 optimized = optimized
             )
             
@@ -1080,6 +1099,8 @@ class iSaxPipeline(object):
                 preprocess= self.input_parameters['preprocess'],
                 smooth_window = dt.timedelta(seconds=self.input_parameters['smooth_window']),
                 detrend_window = dt.timedelta(seconds=self.input_parameters['detrend_window']),
+                frequency_weights=np.array(self.input_parameters['frequency_weights']),
+                frequency_spectrum=np.array(self.input_parameters['frequency_spectrum']),
                 optimized = self.input_parameters['optimized'],
                 verbose=False
             )
