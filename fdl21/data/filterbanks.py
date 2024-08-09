@@ -134,6 +134,25 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
+def add_DC_HF_filters(fb_matrix,
+                      DC = True,
+                      HF = True):
+    # DC
+    if DC:
+        DC_filter = 1-fb_matrix[0,:]
+        minin = (DC_filter == np.min(DC_filter)).nonzero()[0][0]
+        DC_filter[minin:] = 0
+        fb_matrix = np.append(DC_filter[None,:], fb_matrix, axis=0)
+
+    # HF
+    if HF:
+        HF_filter = 1-fb_matrix[-1,:]
+        minin = (HF_filter == np.min(HF_filter)).nonzero()[0][0]
+        HF_filter[0:minin] = 0
+        fb_matrix = np.append(fb_matrix, HF_filter[None,:], axis=0)
+
+    return fb_matrix
+
 def visualize_filterbank_application():
     pass
 
@@ -141,7 +160,11 @@ def run_test():
     pass
 class filterbank:
     def __init__(self,):
-        pass
+        self.fb_matrix = None
+        self.fftfreq = None
+
+        self.n_bands = 0
+        self.center_frequencies = None
 
     def build_fb_from_melbank(self,
                               num_mel_bands = 2,
@@ -149,17 +172,23 @@ class filterbank:
                               freq_max = 5,
                               num_fft_bands = 100000,
                               sample_rate = 44100):
-        melmat, (melfreq,fftfreq) = melbank.compute_melmat(num_fft_bands=num_mel_bands,
+        melmat, ( _,fftfreq) = melbank.compute_melmat(num_fft_bands=num_mel_bands,
                                                            freq_min=freq_min,
                                                            freq_max=freq_max,
                                                            num_fft_bands=num_fft_bands,
                                                            sample_rate=sample_rate)
         
-        return melmat, (melfreq,fftfreq)
-
+        self.fb_matrix = melmat 
+        self.fftfreq = fftfreq
+        self.n_bands = self.fb_matrix.shape[0]
     
-    def add_DC_HF_filters(self,):
-        pass
+    def add_DC_HF_filters(self,
+                          DC = True,
+                          HF = True):
+        self.fb_matrix = add_DC_HF_filters(fb_matrix=self.fb_matrix,
+                                           DC=DC,
+                                           HF=HF)
+        self.n_bands = self.fb_matrix.shape[0]
 
     def save_filterbank(self,):
         pass
