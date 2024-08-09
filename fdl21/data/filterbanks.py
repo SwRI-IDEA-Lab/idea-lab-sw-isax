@@ -11,6 +11,8 @@ import matplotlib.lines as mlines
 from multiprocessing import Pool
 from scipy.stats import norm
 
+import dill as pickle
+
 from astropy.time import Time 
 
 import spiceypy as spice
@@ -153,6 +155,31 @@ def add_DC_HF_filters(fb_matrix,
 
     return fb_matrix
 
+def visualize_filterbank(fb_matrix,
+                         fftfreq,
+                         xlim:tuple = None,
+                         melfreq = None):
+    fig,ax = plt.subplots(figsize=(8,3))
+    ax.plot(fftfreq,fb_matrix.T)
+    ax.grid(True)
+    ax.set_ylabel('Weight')
+    ax.set_xlabel('Frequency / Hz')
+    if xlim is None:
+        xlim = (np.min(fftfreq),np.max(fftfreq))
+    ax.set_xlim(xlim)
+
+    if melfreq is not None:
+        ax2 = ax.twiny()
+        ax2.xaxis.set_ticks_position('top')
+        ax2.set_xlim(xlim)
+        ax2.xaxis.set_ticks(melbank.mel_to_hertz(melfreq))
+        ax2.xaxis.set_ticklabels(['{:.0f}'.format(mf) for mf in melfreq])
+        ax2.set_xlabel('Frequency / mel')
+    
+    plt.tight_layout()
+    plt.show()
+
+
 def visualize_filterbank_application():
     pass
 
@@ -166,13 +193,17 @@ class filterbank:
         self.n_bands = 0
         self.center_frequencies = None
 
-    def build_fb_from_melbank(self,
-                              num_mel_bands = 2,
-                              freq_min = 0,
-                              freq_max = 5,
-                              num_fft_bands = 100000,
-                              sample_rate = 44100):
-        melmat, ( _,fftfreq) = melbank.compute_melmat(num_fft_bands=num_mel_bands,
+    def build_melbank_fb(self,
+                         num_mel_bands = 2,
+                         freq_min = 0,
+                         freq_max = 5,
+                         num_fft_bands = 100000,
+                         sample_rate = 44100):
+        """Build a filterbank, entirely using pyfilterbank's melbank
+        Note: The pyfilterbank.melbank creates filters with peaks in the melmatrix evenly 
+        separated by *mel* frequencies not fft frequencies. 
+        """
+        melmat, (melfreq,fftfreq) = melbank.compute_melmat(num_mel_bands=num_mel_bands,
                                                            freq_min=freq_min,
                                                            freq_max=freq_max,
                                                            num_fft_bands=num_fft_bands,
@@ -180,8 +211,40 @@ class filterbank:
         
         self.fb_matrix = melmat 
         self.fftfreq = fftfreq
+        self.melfreq = melfreq
         self.n_bands = self.fb_matrix.shape[0]
     
+    def build_manual_melbank(self,
+                             frequency_endpoints = [0.0,1.5,3.5,5.0],
+                             fft_freq_range = (0,80000),
+                             num_fft_bands=100000):
+        
+        fftfreq = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
+
+        fb_matrix = []
+        for i,endpt in enumerate(frequency_endpoints[:-1]):
+            endpt_idx = (np.abs(fftfreq - endpt)).argmin()
+            idx_p1 = (np.abs(fftfreq - frequency_endpoints[i+1]))
+
+            pre_endpt = np.zeros(endpt_idx)
+
+            n_pts = (idx_p1 - endpt_idx) + 1 # size of band "hill"
+            up = np.linspace(0,1,n_pts//2)
+            down = np.linspace(1,0,n_pts-len(up))
+            
+            filter = np.concatenate((pre_endpt,up,down),axis=0)
+
+            post_endpt = np.zeros(len(fft_freq_range) - len(filter))
+
+            filter = np.concatenate((filter,post_endpt),axis=0)
+
+            fb_matrix.append(filter)
+        
+        self.fb_matrix = np.array(fb_matrix)
+        self.fftfreq = fftfreq
+        self.frequency_endpoints = frequency_endpoints
+        self.melfreq = None
+
     def add_DC_HF_filters(self,
                           DC = True,
                           HF = True):
@@ -189,6 +252,29 @@ class filterbank:
                                            DC=DC,
                                            HF=HF)
         self.n_bands = self.fb_matrix.shape[0]
+    
+    def get_melbank_freq_endpoints(self):
+        frequency_endpoints =[]
+        for band in self.fb_matrix:
+            idx_max = np.where(band == np.max(band))
+            
+    
+    def visualize_filterbank(self):
+        visualize_filterbank(fb_matrix=self.fb_matrix,
+                             fftfreq=self.fftfreq,
+                             xlim=(self.frequency_endpoints[0],self.frequency_endpoints[-1]),
+                             melfreq=self.melfreq)
 
-    def save_filterbank(self,):
-        pass
+    def save_filterbank(self,
+                        save_path: str):
+
+        self.get_melbank_freq_endpoints()
+            
+        filterbank_dictionary = {'fb_matrix': self.fb_matrix,
+                                'fftfreq': self.fftfreq,
+                                'center_frequencies': self.center_frequencies}
+            
+        with open(save_path + '_filterbank-dictionary.pkl', 'wb') as f:
+            pickle.dump(filterbank_dictionary,f)
+
+            
