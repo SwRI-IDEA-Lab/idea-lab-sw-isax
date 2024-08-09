@@ -60,8 +60,8 @@ def get_test_data(fname_full_path=None,
                   start_date = dt.datetime(year=2019,month=5,day=15,hour=0),
                   end_date = dt.datetime(year=2019,month=5,day=16,hour=0),
                   rads_norm=True,
-                  orbit_fname = None
-                  ):
+                  orbit_fname = None,
+                  return_sample_rate = False):
     """Retrieve a set of data to test and visualize filterbank application
     
     Parameters
@@ -130,14 +130,31 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
-def run_test():
+def visualize_filterbank_application():
     pass
 
+def run_test():
+    pass
 class filterbank:
     def __init__(self,):
         pass
 
-    def build_fb_from_melbank(self,):
+    def build_fb_from_melbank(self,
+                              num_mel_bands = 2,
+                              freq_min = 0,
+                              freq_max = 5,
+                              num_fft_bands = 100000,
+                              sample_rate = 44100):
+        melmat, (melfreq,fftfreq) = melbank.compute_melmat(num_fft_bands=num_mel_bands,
+                                                           freq_min=freq_min,
+                                                           freq_max=freq_max,
+                                                           num_fft_bands=num_fft_bands,
+                                                           sample_rate=sample_rate)
+        
+        return melmat, (melfreq,fftfreq)
+
+    
+    def add_DC_HF_filters(self,):
         pass
 
     def save_filterbank(self,):
