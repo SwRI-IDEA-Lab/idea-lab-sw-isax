@@ -128,6 +128,10 @@ def get_test_data(fname_full_path=None,
     mag_df.interpolate(inplace=True)
     mag_df = mag_df[start_date:end_date]
 
+    if return_sample_rate:
+        avg_sampling_rate, _, _ = pm.check_sampling_freq(mag_df)
+        return mag_df, avg_sampling_rate
+
     return mag_df
 
 def visualize_filterbank_application():
