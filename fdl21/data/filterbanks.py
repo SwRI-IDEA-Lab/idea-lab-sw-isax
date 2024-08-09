@@ -68,17 +68,19 @@ def get_test_data(fname_full_path=None,
     ----------
     fname_full_path : string
         complete file path to cdf file to extract data from
+        A value for fname_full_path or fname (but not both) is required 
     fname : string
         part-way path to cdf file to extract data from, after 
         the selected "_DATA_DIR" that is selected by indicated instrument.
-    start_date: datetime
-        test data start time
-    end_date: datetime
+        A value for fname_full_path or fname (but not both) is required
+    start_date: datetime, optional
+        test data start time 
+    end_date: datetime, optional
         test data end time
     rads_norm : bool, optional
         Boolean flag for controlling the normalization of the magnetic field 
         to account for the decay of the field strength with heliocentric distance
-    orbit_fname : string
+    orbit_fname : string, optional
         file path to psp orbit data
     """
     if fname_full_path is None:
