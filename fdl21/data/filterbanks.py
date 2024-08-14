@@ -185,13 +185,15 @@ def visualize_filterbank_application():
 
 def run_test():
     pass
+
 class filterbank:
     def __init__(self,):
         self.fb_matrix = None
         self.fftfreq = None
-
+        self.melfreq = None
         self.n_bands = 0
-        self.center_frequencies = None
+        self.frequency_endpoints = None
+        self.DC_HF = False
 
     def build_melbank_fb(self,
                          num_mel_bands = 2,
@@ -252,14 +254,30 @@ class filterbank:
                                            DC=DC,
                                            HF=HF)
         self.n_bands = self.fb_matrix.shape[0]
+        self.DC_HF = True
     
     def get_melbank_freq_endpoints(self):
         frequency_endpoints =[]
+        # TODO (JK): Potentially need to come back and refine later
         for band in self.fb_matrix:
-            idx_max = np.where(band == np.max(band))
-            
+            idx = band.nonzero()[0][0]
+            if idx != 0:
+                idx -= 1
+            frequency_endpoints.append(self.fftfreq[idx])
+        if not self.DC_HF:
+            last_idx = self.fb_matrix[-1,:].nonzero()[0][-1]
+            if last_idx+1 == len(self.fftfreq):
+                frequency_endpoints.append(self.fftfreq[-1])
+            else:
+                frequency_endpoints.append(self.fftfreq[last_idx+1])
+        else:
+            last_idx = np.where(self.fb_matrix[-1,:]==1)[0][0]
+            frequency_endpoints.append(self.fftfreq[last_idx])
+
+        self.frequency_endpoints = np.array(frequency_endpoints)          
     
     def visualize_filterbank(self):
+        self.get_melbank_freq_endpoints()
         visualize_filterbank(fb_matrix=self.fb_matrix,
                              fftfreq=self.fftfreq,
                              xlim=(self.frequency_endpoints[0],self.frequency_endpoints[-1]),
@@ -272,7 +290,7 @@ class filterbank:
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
-                                'center_frequencies': self.center_frequencies}
+                                'frequencies': self.frequency_endpoints}
             
         with open(save_path + '_filterbank-dictionary.pkl', 'wb') as f:
             pickle.dump(filterbank_dictionary,f)
