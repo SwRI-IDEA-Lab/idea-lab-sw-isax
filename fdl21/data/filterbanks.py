@@ -180,8 +180,90 @@ def visualize_filterbank(fb_matrix,
     plt.show()
 
 
-def visualize_filterbank_application():
-    pass
+def visualize_filterbank_application(data_df,
+                                     melmat,
+                                     fftfreq,
+                                     data_col = None,
+                                     cadence = dt.timedelta(seconds=300),
+                                     avg_sampling_rate = None,
+                                     figsize=(24,8),
+                                     wordsize_factor=20,
+                                     gs_wspace = 0.2,
+                                     gs_hspace = 0,
+                                     xlim = None
+                                     ):
+    fig = plt.figure(figsize=figsize)
+    gs = fig.add_gridspec(ncols = 3, nrows = melmat.shape[0]*2,
+                          figure = fig,
+                          wspace=gs_wspace, hspace=gs_hspace)
+    
+    if data_col is None:
+        data_col = data_df.columns[-1]
+    x = data_df.index
+    y = data_df[data_col]
+    total = np.zeros(data_df[data_col].shape)
+    total_paa = np.zeros(data_df[data_col].shape)
+    
+    for i in range(melmat.shape[0]):
+        filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,
+                                                cols=data_df.columns,
+                                                cadence=cadence,
+                                                frequency_weights=melmat[i,:],
+                                                frequency_spectrum=fftfreq,
+                                                avg_sampling_rate=avg_sampling_rate)
+        
+        filtered_sig = np.array(filtered_sig[data_col])
+        
+        total = total + filtered_sig
+
+        word_size = wordsize_factor*(i + 1 + 30*np.max([0, i-2]) )
+        paa = PiecewiseAggregateApproximation(word_size)
+        paa_sequence = paa.fit_transform(filtered_sig[None,:]).squeeze()
+
+        xpaa = np.min(x) + np.arange(0,word_size)/(word_size)*(np.max(x)-np.min(x))
+
+        paa_sfull = total.copy()*0
+
+        for j, segmentx in enumerate(xpaa):
+            paa_sfull[np.array(x)>=segmentx] = paa_sequence[j]
+
+        total_paa = total_paa + paa_sfull    
+
+        ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
+        ax0.plot(x, filtered_sig)
+        ax0.plot(x[0:-1:wordsize_factor], paa_sfull[0:-1:wordsize_factor], c='r')
+        ax0.set_xticks([])
+        ax0.set_yticks([])
+
+        if i==0:
+            ax0.set_title('Filter bank decomposition')
+
+
+    ax0 = fig.add_subplot(gs[3:5,2])   
+    ax0.plot(x[0:-1:wordsize_factor], total_paa[0:-1:wordsize_factor], c='r')
+    ax0.set_title('Series recovered from filter bank PAA')
+    ax0.set_xticks([])
+    ax0.set_yticks([])
+
+
+    ax0 = fig.add_subplot(gs[3:5,0])   
+    ax0.plot(x, y-np.mean(y))
+    ax0.set_title('Original series')
+    # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
+    ax0.set_xticks([])
+    ax0.set_yticks([])
+
+    if xlim is None:
+        xlim = (fftfreq[0],fftfreq[-1])
+    ax = fig.add_subplot(gs[0:2,0])  
+    ax.plot(fftfreq, melmat.T)
+    ax.grid(True)
+    ax.set_ylabel('Weight')
+    ax.set_xlabel('Frequency / Hz')
+    ax.set_xlim(xlim)
+    ax.set_title('Mel filter bank')
+    ax.set_xticks([])
+
 
 def run_test():
     pass
