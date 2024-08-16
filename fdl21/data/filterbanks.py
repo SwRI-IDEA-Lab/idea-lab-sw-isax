@@ -223,6 +223,7 @@ class filterbank:
                              frequency_endpoints:list = None,
                              fft_freq_range = (0,8000),
                              num_fft_bands:int = 1000000):
+        """Build melbank-like filterbank manually by specifically indicating frequencies of interest (in hertz; no mel frequencies involved)."""
         if frequency_endpoints is None:
             frequency_endpoints = [0.0,1.5,3.5,5.0]
         freqs = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
