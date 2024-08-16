@@ -200,7 +200,7 @@ class filterbank:
                          freq_min = 0,
                          freq_max = 5,
                          num_fft_bands = 100000,
-                         sample_rate = 44100):
+                         sample_rate = 16000):
         """Build a filterbank, entirely using pyfilterbank's melbank 
         ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html))
         
@@ -221,33 +221,34 @@ class filterbank:
     
     def build_manual_melbank(self,
                              frequency_endpoints:list = None,
-                             fft_freq_range = (0,80000),
-                             num_fft_bands = 100000):
+                             fft_freq_range = (0,8000),
+                             num_fft_bands:int = 1000000):
         if frequency_endpoints is None:
             frequency_endpoints = [0.0,1.5,3.5,5.0]
-        fftfreq = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
+        freqs = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
 
-        fb_matrix = []
-        for i,endpt in enumerate(frequency_endpoints[:-1]):
-            endpt_idx = (np.abs(fftfreq - endpt)).argmin()
-            idx_p1 = (np.abs(fftfreq - frequency_endpoints[i+1])).argmin()
+        # the following is identical to pyfilterbank melbank, but frequencies are always in hertz
+        # (pyfilterbank finds center_frequencies, etc. first in mel-scale then converts to hz)
+        center_frequencies_hz = frequency_endpoints[1:-1]
+        lower_edges_hz = frequency_endpoints[:-2]
+        upper_edges_hz = frequency_endpoints[2:]
+        melmat = np.zeros((len(center_frequencies_hz), num_fft_bands))
 
-            pre_endpt = np.zeros(endpt_idx)
+        for imelband, (center, lower, upper) in enumerate(zip(
+                center_frequencies_hz, lower_edges_hz, upper_edges_hz)):
 
-            n_pts = (idx_p1 - endpt_idx) + 1 # size of band "hill"
-            up = np.linspace(0,1,n_pts//2)
-            down = np.linspace(1,0,n_pts-len(up))
-            
-            filter = np.concatenate((pre_endpt,up,down),axis=0)
+            left_slope = (freqs >= lower)  == (freqs <= center)
+            melmat[imelband, left_slope] = (
+                (freqs[left_slope] - lower) / (center - lower)
+            )
 
-            post_endpt = np.zeros(len(fft_freq_range) - len(filter))
-
-            filter = np.concatenate((filter,post_endpt),axis=0)
-
-            fb_matrix.append(filter)
+            right_slope = (freqs >= center) == (freqs <= upper)
+            melmat[imelband, right_slope] = (
+                (upper - freqs[right_slope]) / (upper - center)
+            )
         
-        self.fb_matrix = np.array(fb_matrix)
-        self.fftfreq = fftfreq
+        self.fb_matrix = melmat
+        self.fftfreq = freqs
         self.frequency_endpoints = frequency_endpoints
         self.melfreq = None
 
@@ -279,7 +280,8 @@ class filterbank:
         self.frequency_endpoints = np.array(frequency_endpoints)          
     
     def visualize_filterbank(self):
-        self.get_melbank_freq_endpoints()
+        if self.frequency_endpoints is None:
+            self.get_melbank_freq_endpoints()
         visualize_filterbank(fb_matrix=self.fb_matrix,
                              fftfreq=self.fftfreq,
                              xlim=(self.frequency_endpoints[0],self.frequency_endpoints[-1]),
