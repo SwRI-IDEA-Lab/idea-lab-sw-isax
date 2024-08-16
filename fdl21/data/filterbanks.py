@@ -201,9 +201,12 @@ class filterbank:
                          freq_max = 5,
                          num_fft_bands = 100000,
                          sample_rate = 44100):
-        """Build a filterbank, entirely using pyfilterbank's melbank
-        Note: The pyfilterbank.melbank creates filters with peaks in the melmatrix evenly 
-        separated by *mel* frequencies not fft frequencies. 
+        """Build a filterbank, entirely using pyfilterbank's melbank 
+        ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html))
+        
+        **Note:** Traditional melbank filters are spread across the frequency spectrum  
+        (on the *Mel* scale) in a way that is spaced lienarly at low frequencies 
+        and logarithmically at higher frequencies. 
         """
         melmat, (melfreq,fftfreq) = melbank.compute_melmat(num_mel_bands=num_mel_bands,
                                                            freq_min=freq_min,
@@ -217,16 +220,17 @@ class filterbank:
         self.n_bands = self.fb_matrix.shape[0]
     
     def build_manual_melbank(self,
-                             frequency_endpoints = [0.0,1.5,3.5,5.0],
+                             frequency_endpoints:list = None,
                              fft_freq_range = (0,80000),
-                             num_fft_bands=100000):
-        
+                             num_fft_bands = 100000):
+        if frequency_endpoints is None:
+            frequency_endpoints = [0.0,1.5,3.5,5.0]
         fftfreq = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
 
         fb_matrix = []
         for i,endpt in enumerate(frequency_endpoints[:-1]):
             endpt_idx = (np.abs(fftfreq - endpt)).argmin()
-            idx_p1 = (np.abs(fftfreq - frequency_endpoints[i+1]))
+            idx_p1 = (np.abs(fftfreq - frequency_endpoints[i+1])).argmin()
 
             pre_endpt = np.zeros(endpt_idx)
 
@@ -261,8 +265,6 @@ class filterbank:
         # TODO (JK): Potentially need to come back and refine later
         for band in self.fb_matrix:
             idx = band.nonzero()[0][0]
-            if idx != 0:
-                idx -= 1
             frequency_endpoints.append(self.fftfreq[idx])
         if not self.DC_HF:
             last_idx = self.fb_matrix[-1,:].nonzero()[0][-1]
