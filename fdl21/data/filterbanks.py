@@ -190,7 +190,8 @@ def visualize_filterbank_application(data_df,
                                      wordsize_factor=20,
                                      gs_wspace = 0.2,
                                      gs_hspace = 0,
-                                     xlim = None
+                                     xlim = None,
+                                     freq_endpt_xticks = None
                                      ):
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(ncols = 3, nrows = melmat.shape[0]*2,
@@ -263,7 +264,8 @@ def visualize_filterbank_application(data_df,
     ax.set_xlabel('Frequency / Hz')
     ax.set_xlim(xlim)
     ax.set_title('Mel filter bank')
-    ax.set_xticks([])
+    if freq_endpt_xticks is not None:
+        ax.set_xticks(freq_endpt_xticks)
 
 
 def run_test():
