@@ -216,7 +216,7 @@ def visualize_filterbank_application(data_df,
         
         total = total + filtered_sig
 
-        word_size = wordsize_factor*(i + 1 + 30*np.max([0, i-2]) )
+        word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:]).squeeze()
 
@@ -231,9 +231,10 @@ def visualize_filterbank_application(data_df,
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
         ax0.plot(x, filtered_sig)
-        ax0.plot(x[0:-1:wordsize_factor], paa_sfull[0:-1:wordsize_factor], c='r')
+        ax0.plot(x[0:-1:wordsize_factor], paa_sfull[0:-1:wordsize_factor], c='r',label=f'word_size = {word_size}')
         ax0.set_xticks([])
         ax0.set_yticks([])
+        ax0.legend()
 
         if i==0:
             ax0.set_title('Filter bank decomposition')
