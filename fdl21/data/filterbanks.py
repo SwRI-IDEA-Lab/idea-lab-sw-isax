@@ -159,6 +159,7 @@ def visualize_filterbank(fb_matrix,
                          fftfreq,
                          xlim:tuple = None,
                          melfreq = None):
+    """Simple plot of filterbank"""
     fig,ax = plt.subplots(figsize=(8,3))
     ax.plot(fftfreq,fb_matrix.T)
     ax.grid(True)
@@ -193,6 +194,14 @@ def visualize_filterbank_application(data_df,
                                      xlim = None,
                                      freq_endpt_xticks = None
                                      ):
+    """Plot comprehensive visualization of filterbank and its application to a set of test data.
+    Plot includes the filterbank, raw test data, decomposition of filterbank preprocessed data and PAA, 
+    and series recovered from summing up each filterbank PAA application.
+    
+    Parameters
+    ----------
+    
+    """
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(ncols = 3, nrows = melmat.shape[0]*2,
                           figure = fig,
@@ -348,6 +357,13 @@ class filterbank:
         self.DC_HF = True
     
     def get_melbank_freq_endpoints(self):
+        """Update frequency endpoints of the object melfilterbank. 
+
+        A frequency endpoint is the frequency of each edge (lower, center, and upper) of a band in the filters.
+        Or in other words this is a comprehensive frequency list of the center frequencies 
+        and band edges, as they are called in the pyfilterbank module for mel filterbank 
+        ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html#melbank.melfrequencies_mel_filterbank))."""
+        
         frequency_endpoints =[]
         # TODO (JK): Potentially need to come back and refine later
         for band in self.fb_matrix:
@@ -366,6 +382,7 @@ class filterbank:
         self.frequency_endpoints = np.array(frequency_endpoints)          
     
     def visualize_filterbank(self):
+        """Show a plot of the built filterbank."""
         if self.frequency_endpoints is None:
             self.get_melbank_freq_endpoints()
         visualize_filterbank(fb_matrix=self.fb_matrix,
@@ -375,6 +392,8 @@ class filterbank:
 
     def save_filterbank(self,
                         save_path: str):
+        """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
+        as a dictionary to a local pickle file"""
         if self.frequency_endpoints is None:
             self.get_melbank_freq_endpoints()
             
