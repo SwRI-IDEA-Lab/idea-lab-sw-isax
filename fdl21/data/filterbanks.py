@@ -375,13 +375,14 @@ class filterbank:
 
     def save_filterbank(self,
                         save_path: str):
-
-        self.get_melbank_freq_endpoints()
+        if self.frequency_endpoints is None:
+            self.get_melbank_freq_endpoints()
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
                                 'frequencies': self.frequency_endpoints}
             
+        # TODO: (JK) Think about naming convention (like isax cache)
         with open(save_path + '_filterbank-dictionary.pkl', 'wb') as f:
             pickle.dump(filterbank_dictionary,f)
 
