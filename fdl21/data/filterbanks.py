@@ -281,13 +281,21 @@ def run_test():
     pass
 
 class filterbank:
-    def __init__(self,):
+    def __init__(self,
+                 restore_from_file:str = None):
         self.fb_matrix = None
         self.fftfreq = None
         self.melfreq = None
         self.n_bands = 0
         self.frequency_endpoints = None
         self.DC_HF = False
+
+        if restore_from_file is not None:
+            pkl = open(restore_from_file,'rb')
+            fb_dict = pickle.load(pkl)
+            self.fb_matrix = fb_dict['fb_matrix']
+            self.fftfreq = fb_dict['fftfreq']
+            self.frequency_endpoints = fb_dict['frequency_endpoints']
 
     def build_melbank_fb(self,
                          num_mel_bands = 2,
@@ -317,7 +325,8 @@ class filterbank:
                              frequency_endpoints:list = None,
                              fft_freq_range = (0,8000),
                              num_fft_bands:int = 1000000):
-        """Build melbank-like filterbank manually by specifically indicating frequencies of interest (in hertz; no mel frequencies involved)."""
+        """Build melbank-like filterbank manually by specifically indicating frequencies of 
+        interest (in hertz; no mel frequencies involved)."""
         if frequency_endpoints is None:
             frequency_endpoints = [0.0,1.5,3.5,5.0]
         freqs = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
@@ -399,10 +408,10 @@ class filterbank:
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
-                                'frequencies': self.frequency_endpoints}
+                                'frequency_endpoints': self.frequency_endpoints}
             
         # TODO: (JK) Think about naming convention (like isax cache)
-        with open(save_path + '_filterbank-dictionary.pkl', 'wb') as f:
+        with open(save_path + '/filterbank-dictionary.pkl', 'wb') as f:
             pickle.dump(filterbank_dictionary,f)
 
             
