@@ -137,7 +137,7 @@ for i in range(melmat.shape[0]):
 
     ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
     ax0.plot(x, filtered_sig)
-    ax0.plot(x[0:-1:20], paa_sfull[0:-1:20], c='r')
+    ax0.plot(x, paa_sfull, c='r')
     # ax0.set_ylim([-3,3.5])
     # if i<3:
     ax0.set_xticks([])
