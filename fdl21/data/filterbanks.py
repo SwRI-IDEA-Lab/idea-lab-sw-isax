@@ -225,6 +225,7 @@ def visualize_filterbank_application(data_df,
         
         total = total + filtered_sig
 
+        # TODO: make wordsize calculation less arbitrary
         word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:]).squeeze()
