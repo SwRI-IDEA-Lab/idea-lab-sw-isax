@@ -283,16 +283,19 @@ class filterbank:
         self.fb_matrix = None
         self.fftfreq = None
         self.melfreq = None
-        self.n_bands = 0
-        self.frequency_endpoints = None
-        self.DC_HF = False
+        self.edge_freq = None
+        self.DC = False
+        self.HF = False
 
         if restore_from_file is not None:
             pkl = open(restore_from_file,'rb')
             fb_dict = pickle.load(pkl)
             self.fb_matrix = fb_dict['fb_matrix']
             self.fftfreq = fb_dict['fftfreq']
-            self.frequency_endpoints = fb_dict['frequency_endpoints']
+            self.melfreq = fb_dict['melfreq']
+            self.edge_freq = fb_dict['edge_freq']
+            self.DC = fb_dict['DC']
+            self.HF = fb_dict['HF']
 
     def build_melbank_fb(self,
                          num_mel_bands = 2,
@@ -316,23 +319,22 @@ class filterbank:
         self.fb_matrix = melmat 
         self.fftfreq = fftfreq
         self.melfreq = melfreq
-        self.n_bands = self.fb_matrix.shape[0]
     
     def build_manual_melbank(self,
-                             frequency_endpoints:list = None,
+                             edge_freq:list = None,
                              fft_freq_range = (0,8000),
                              num_fft_bands:int = 1000000):
         """Build melbank-like filterbank manually by specifically indicating frequencies of 
         interest (in hertz; no mel frequencies involved)."""
-        if frequency_endpoints is None:
-            frequency_endpoints = [0.0,1.5,3.5,5.0]
+        if edge_freq is None:
+            edge_freq = [0.0,1.5,3.5,5.0]
         freqs = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
 
         # the following is identical to pyfilterbank melbank, but frequencies are always in hertz
         # (pyfilterbank finds center_frequencies, etc. first in mel-scale then converts to hz)
-        center_frequencies_hz = frequency_endpoints[1:-1]
-        lower_edges_hz = frequency_endpoints[:-2]
-        upper_edges_hz = frequency_endpoints[2:]
+        center_frequencies_hz = edge_freq[1:-1]
+        lower_edges_hz = edge_freq[:-2]
+        upper_edges_hz = edge_freq[2:]
         melmat = np.zeros((len(center_frequencies_hz), num_fft_bands))
 
         for imelband, (center, lower, upper) in enumerate(zip(
@@ -350,7 +352,7 @@ class filterbank:
         
         self.fb_matrix = melmat
         self.fftfreq = freqs
-        self.frequency_endpoints = frequency_endpoints
+        self.edge_freq = edge_freq
         self.melfreq = None
 
     def add_DC_HF_filters(self,
@@ -359,10 +361,10 @@ class filterbank:
         self.fb_matrix = add_DC_HF_filters(fb_matrix=self.fb_matrix,
                                            DC=DC,
                                            HF=HF)
-        self.n_bands = self.fb_matrix.shape[0]
-        self.DC_HF = True
+        self.DC = DC
+        self.HF = HF
     
-    def get_melbank_freq_endpoints(self):
+    def get_melbank_edge_freq(self):
         """Update frequency endpoints of the object melfilterbank. 
 
         A frequency endpoint is the frequency of each edge (lower, center, and upper) of a band in the filters.
@@ -370,45 +372,57 @@ class filterbank:
         and band edges, as they are called in the pyfilterbank module for mel filterbank 
         ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html#melbank.melfrequencies_mel_filterbank))."""
         
-        frequency_endpoints =[]
+        edge_freq =[]
         # TODO (JK): Potentially need to come back and refine later
         for band in self.fb_matrix:
             idx = band.nonzero()[0][0]
-            frequency_endpoints.append(self.fftfreq[idx])
-        if not self.DC_HF:
+            edge_freq.append(self.fftfreq[idx])
+        if not self.DC and not self.HF:
             last_idx = self.fb_matrix[-1,:].nonzero()[0][-1]
             if last_idx+1 == len(self.fftfreq):
-                frequency_endpoints.append(self.fftfreq[-1])
+                edge_freq.append(self.fftfreq[-1])
             else:
-                frequency_endpoints.append(self.fftfreq[last_idx+1])
+                edge_freq.append(self.fftfreq[last_idx+1])
         else:
             last_idx = np.where(self.fb_matrix[-1,:]==1)[0][0]
-            frequency_endpoints.append(self.fftfreq[last_idx])
+            edge_freq.append(self.fftfreq[last_idx])
 
-        self.frequency_endpoints = np.array(frequency_endpoints)          
+        self.edge_freq = np.array(edge_freq)          
     
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
-        if self.frequency_endpoints is None:
+        if self.edge_freq is None:
             self.get_melbank_freq_endpoints()
         visualize_filterbank(fb_matrix=self.fb_matrix,
                              fftfreq=self.fftfreq,
-                             xlim=(self.frequency_endpoints[0],self.frequency_endpoints[-1]),
+                             xlim=(self.edge_freq[0],self.edge_freq[-1]),
                              melfreq=self.melfreq)
 
     def save_filterbank(self,
                         save_path: str):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
         as a dictionary to a local pickle file"""
-        if self.frequency_endpoints is None:
-            self.get_melbank_freq_endpoints()
+        if self.edge_freq is None:
+            self.get_melbank_edge_freq()
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
-                                'frequency_endpoints': self.frequency_endpoints}
+                                'melfreq': self.melfreq,
+                                'edge_freq': self.edge_freq,
+                                'DC': self.DC,
+                                'HF': self.HF
+                                }
             
-        # TODO: (JK) Think about naming convention (like isax cache)
-        with open(save_path + '/filterbank-dictionary.pkl', 'wb') as f:
+       
+        fb_prefix = f'fb'
+        for edge in self.edge_freq:
+            fb_prefix +=f'_{edge}'
+        if self.DC:
+            fb_prefix += '_DC'
+        if self.HF:
+            fb_prefix += '_HF'
+
+        with open(_SRC_DATA_DIR + '/filterbanks/' + fb_prefix +'.pkl', 'wb') as f:
             pickle.dump(filterbank_dictionary,f)
 
             
