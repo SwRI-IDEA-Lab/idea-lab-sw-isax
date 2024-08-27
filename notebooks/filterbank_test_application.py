@@ -31,15 +31,19 @@ from scipy import fft
 import datetime as dt
 
 import os
-os.chdir('/home/jasminekobayashi/gh_repos/idea-lab-sw-isax')
+_FILE_DIR = os.path.dirname(__file__)
+_SRC_DIR = os.path.dirname(_FILE_DIR)
+os.chdir(_SRC_DIR)
 import fdl21.data.prototyping_metrics as pm
 import fdl21.utils.time_chunking as tc
 # %% Load test OMNI data
-omni_path = '/mnt/c/sw-data/nasaomnireader/'
+_PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
+_WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
+_OMNI_MAG_DATA_DIR = '/sw-data/nasaomnireader/'
 year = '2019'
 month = '05'
 
-cdf_file_path = omni_path + year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
+cdf_file_path = _SRC_DIR+_OMNI_MAG_DATA_DIR + year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
 
 mag_df = pm.read_OMNI_dataset(cdf_file_path)
 mag_df.interpolate(inplace=True)

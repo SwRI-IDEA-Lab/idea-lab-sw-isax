@@ -35,15 +35,9 @@ import os,sys
 import fdl21.data.prototyping_metrics as pm
 import fdl21.utils.time_chunking as tc
 
-omni_path = '/mnt/c/sw-data/nasaomnireader/'
-year = '2019'
-month = '05'
 
-
-test_cdf_file_path =omni_path+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
-
-
-_MODEL_DIR = os.path.dirname( os.path.abspath(__file__))
+_FILE_DIR = os.path.dirname( os.path.abspath(__file__))
+_MODEL_DIR = os.path.dirname(_FILE_DIR)
 _SRC_DIR = os.path.dirname(_MODEL_DIR)
 sys.path.append(_SRC_DIR)
 
@@ -54,6 +48,9 @@ _SRC_DATA_DIR = os.path.join(_SRC_DIR,'data',)
 
 _EXPONENTS_LIST = [2.15, 1.05, 1.05]
 
+year = '2019'
+month = '05'
+test_cdf_file_path =_SRC_DIR+_OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
 
 def get_test_data(fname_full_path=None,
                   fname = None,
