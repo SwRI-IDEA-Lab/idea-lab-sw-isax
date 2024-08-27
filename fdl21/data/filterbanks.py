@@ -377,6 +377,9 @@ class filterbank:
         for band in self.fb_matrix:
             idx = band.nonzero()[0][0]
             edge_freq.append(self.fftfreq[idx])
+        if not self.HF:
+            last_center_idx = np.argmax(band)
+            edge_freq.append(self.fftfreq[last_center_idx])
         if not self.DC and not self.HF:
             last_idx = self.fb_matrix[-1,:].nonzero()[0][-1]
             if last_idx+1 == len(self.fftfreq):
