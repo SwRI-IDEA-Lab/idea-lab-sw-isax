@@ -16,7 +16,7 @@
         "-start_year", "1994",
         "-stop_year", "2023",
         "-instrument", "omni",
-        "-data_path", "/mnt/c/sw-data/nasaomnireader/",
+        "-data_path", "c:/Users/jkobayashi/sw-data/nasaomnireader/",
         // "-debug", "10"
         "-histogram"
       ]
@@ -56,8 +56,8 @@
       "justMyCode": false,
       "args": [
         "-word_size","4",
-        "-start_date", "2008-01-01",
-        "-stop_date", "2024-01-01",
+        "-start_date", "2018-01-01",
+        "-stop_date", "2018-06-01",
         "-min_cardinality","8",
         "-max_cardinality","32",
         "-cadence", "60",
@@ -69,12 +69,43 @@
         "-cache",
         "-min_samples","3",
         "-min_cluster_size","10",
-        "-cache_folder", "/home/jasminekobayashi/isax_cache5/",
+        "-cache_folder", "/Users/jkobayashi/isax_cache/",
         "-transliterate", 
         "-plot_cluster",
         "-recluster_iterations","-1",
         "-set_largest_cluster_to_noncluster",
-        "-save_model"
+        //"-save_model"
+      ]
+    },
+    {
+      "name": "iSAX filterbank",
+      "type": "python",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "module": "${command:extension.commandvariable.file.relativeFileDotsNoExtension}",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "-word_size","4",
+        "-start_date", "2018-01-01",
+        "-stop_date", "2018-06-01",
+        "-min_cardinality","8",
+        "-max_cardinality","32",
+        "-cadence", "60",
+        "-chunk_size","3000",
+        "-smooth_window","18000",
+        "-detrend_window","3000",
+        // "-threshold","500",
+        "-instrument", "omni",
+        "-cache",
+        "-min_samples","3",
+        "-min_cluster_size","10",
+        "-cache_folder", "/Users/jkobayashi/isax_cache/",
+        "-transliterate", 
+        "-plot_cluster",
+        "-recluster_iterations","-1",
+        "-set_largest_cluster_to_noncluster",
+        //"-save_model"
       ]
     }
   ]
