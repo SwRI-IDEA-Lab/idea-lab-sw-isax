@@ -392,14 +392,13 @@ class filterbank:
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
         if self.edge_freq is None:
-            self.get_melbank_freq_endpoints()
+            self.get_melbank_edge_freq()
         visualize_filterbank(fb_matrix=self.fb_matrix,
                              fftfreq=self.fftfreq,
                              xlim=(self.edge_freq[0],self.edge_freq[-1]),
                              melfreq=self.melfreq)
 
-    def save_filterbank(self,
-                        save_path: str):
+    def save_filterbank(self):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
         as a dictionary to a local pickle file"""
         if self.edge_freq is None:
@@ -408,7 +407,7 @@ class filterbank:
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
                                 'melfreq': self.melfreq,
-                                'edge_freq': self.edge_freq,
+                                'edge_freq': self.edge_freq.round(2),
                                 'DC': self.DC,
                                 'HF': self.HF
                                 }
