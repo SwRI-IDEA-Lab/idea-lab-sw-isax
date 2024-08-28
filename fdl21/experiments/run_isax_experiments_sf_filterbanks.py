@@ -96,22 +96,7 @@ parser.add_argument(
     ),
     type=int
 )
-parser.add_argument(
-    '-preprocess',
-    default='smooth_detrend',
-    help='Preprocessing method to apply to raw data (smoothing/detrending or filterbank filters)',
-    type=str
-)
 
-parser.add_argument(
-    '-detrend_window',
-    default=1800,
-    help=(
-        'Window size, in seconds, to use for detrending.'
-        'Defaults to 1800 seconds.'
-    ),
-    type=int
-)
 parser.add_argument(
     '-max_cardinality',
     default=16,
@@ -133,15 +118,7 @@ parser.add_argument(
     ),
     type=int
 )
-parser.add_argument(
-    '-smooth_window',
-    default=2,
-    help=(
-        'Window size, in seconds, to use for smoothing.'
-        'Defaults to [2].'
-    ),
-    type=int
-)
+
 parser.add_argument(
     '-threshold',
     default=200,
@@ -431,7 +408,7 @@ if __name__ == "__main__":
         '%Y-%m-%d'
     )
 
-    run_prefix = f"CS{args['chunk_size']}_C{args['cadence']}_SW{args['smooth_window']}_DW{args['detrend_window']}_O{args['overlap']}_{args['instrument']}"
+    run_prefix = f"CS{args['chunk_size']}_C{args['cadence']}_O{args['overlap']}_{args['instrument']}"
     profile_file = run_prefix + f"_WS{args['word_size']}_CA{args['min_cardinality']}_{args['max_cardinality']}_MCS{args['min_cluster_size']}"
     profile_file = profile_file + f"_MS{args['min_samples']}_T{args['threshold']}_NLD{args['node_level_depth']}_profile.txt"
 
@@ -439,13 +416,11 @@ if __name__ == "__main__":
     args['cadence'] = dt.timedelta(seconds=args['cadence'])
     args['chunk_size'] = dt.timedelta(seconds=args['chunk_size'])
     args['overlap'] = dt.timedelta(seconds=args['overlap'])
-    args['detrend_window'] = dt.timedelta(seconds=args['detrend_window'])
-    args['smooth_window'] = dt.timedelta(seconds=args['smooth_window'])
-
+    
     if args['profiling']:
         pr = cProfile.Profile()
         pr.enable()
-        run_experiment(**args)
+        run_filterbanks(**args)
         pr.disable()
 
         if not os.path.exists('profiles'):
@@ -459,4 +434,4 @@ if __name__ == "__main__":
             stats.print_stats()
     else:
 
-        run_experiment(**args)
+        run_filterbanks(**args)
