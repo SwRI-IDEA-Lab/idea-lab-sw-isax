@@ -301,7 +301,7 @@ class filterbank:
                          num_mel_bands = 2,
                          freq_min = 0,
                          freq_max = 5,
-                         num_fft_bands = 100000,
+                         num_fft_bands:int = int(1e6),
                          sample_rate = 16000):
         """Build a filterbank, entirely using pyfilterbank's melbank 
         ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html))
@@ -323,7 +323,7 @@ class filterbank:
     def build_manual_melbank(self,
                              edge_freq:list = None,
                              fft_freq_range = (0,8000),
-                             num_fft_bands:int = 1000000):
+                             num_fft_bands:int = int(1e6)):
         """Build melbank-like filterbank manually by specifically indicating frequencies of 
         interest (in hertz; no mel frequencies involved)."""
         if edge_freq is None:
@@ -374,23 +374,40 @@ class filterbank:
         
         edge_freq =[]
         # TODO (JK): Potentially need to come back and refine later
-        for band in self.fb_matrix:
-            idx = band.nonzero()[0][0]
+        if self.DC:
+            # if first band is DC band, then skip 
+            # (bc first edge is accounted for in getting all lower edges)
+            matrix = self.fb_matrix[1:,:]
+        else:
+            matrix = self.fb_matrix
+
+        # get all "lower edges"
+        for band in matrix:
+            idx = band.nonzero()[0][0] 
             edge_freq.append(self.fftfreq[idx])
-        if not self.HF:
-            last_center_idx = np.argmax(band)
+
+        # Dealing with edges of last band of filterbank
+        last_band = self.fb_matrix[-1,:]
+        if self.HF:
+            # If the last band is HF band, 
+            # then need to find index of first value = 1 in last band in matrix
+            # (lower edge of HF filter is already accounted for in "get all 'lower edges'")
+            last_idx = np.where(last_band==1)[0][0]
+            edge_freq.append(self.fftfreq[last_idx])
+        
+        else: # Last band is not HF band
+            # Include center frequency of last band 
+            last_center_idx = np.argmax(last_band)
             edge_freq.append(self.fftfreq[last_center_idx])
-        if not self.DC and not self.HF:
-            last_idx = self.fb_matrix[-1,:].nonzero()[0][-1]
+
+            # The index of upper edge of last band is last non-zero value of last band in bank
+            last_idx = last_band.nonzero()[0][-1]
             if last_idx+1 == len(self.fftfreq):
                 edge_freq.append(self.fftfreq[-1])
             else:
                 edge_freq.append(self.fftfreq[last_idx+1])
-        else:
-            last_idx = np.where(self.fb_matrix[-1,:]==1)[0][0]
-            edge_freq.append(self.fftfreq[last_idx])
 
-        self.edge_freq = np.array(edge_freq)          
+        self.edge_freq = np.array(edge_freq).round(2)          
     
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
@@ -410,7 +427,7 @@ class filterbank:
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
                                 'melfreq': self.melfreq,
-                                'edge_freq': self.edge_freq.round(2),
+                                'edge_freq': self.edge_freq.round(1),
                                 'DC': self.DC,
                                 'HF': self.HF
                                 }
