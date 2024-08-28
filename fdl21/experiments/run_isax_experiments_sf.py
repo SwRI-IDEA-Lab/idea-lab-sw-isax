@@ -625,6 +625,8 @@ def build_cache(
         preprocess=None,
         smooth_window=dt.timedelta(seconds=5),
         detrend_window=dt.timedelta(seconds=1800),
+        frequency_weights=np.array([]),
+        frequency_spectrum=np.array([]),
         cache_folder='/cache/',
         instrument='psp'      
     ):
@@ -656,6 +658,8 @@ def build_cache(
             preprocess=preprocess,
             smooth_window=smooth_window,
             detrend_window=detrend_window,
+            frequency_weights=frequency_weights,
+            frequency_spectrum=frequency_spectrum,
             optimized=True,
             cache_folder=cache_folder,
             instrument=instrument
@@ -799,8 +803,8 @@ def run_experiment(
         preprocess_prefix = f'_SW{smooth_window.seconds}_DW{detrend_window.seconds}'
 
 
-    run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_O{overlap.seconds}_{instrument}'
-    pdf_file = run_prefix + preprocess_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_RI{recluster_iterations}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
+    run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_O{overlap.seconds}_{instrument}' + preprocess_prefix
+    pdf_file = run_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_RI{recluster_iterations}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
     cache_folder =  cache_folder + run_prefix + '/'
     v = isax_vis.iSaxVisualizer()
     
