@@ -682,6 +682,9 @@ def run_experiment(
     chunk_size=dt.timedelta(seconds=300),
     smooth_window=dt.timedelta(seconds=2),
     detrend_window=dt.timedelta(seconds=1800),
+    frequency_weights=np.array([]),
+    frequency_spectrum=np.array([]),
+    edge_freq = np.array([]),
     overlap = dt.timedelta(seconds=0),
     node_level_depth = 2,
     min_cluster_size = 5,
@@ -788,8 +791,16 @@ def run_experiment(
         cse_text = str(int(cluster_selection_epsilon*10))
 
 
-    run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_SW{smooth_window.seconds}_DW{detrend_window.seconds}_O{overlap.seconds}_{instrument}'
-    pdf_file = run_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_RI{recluster_iterations}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
+    if preprocess == 'filter':
+        preprocess_prefix = f'_FE{edge_freq[0]}'
+        for freq in edge_freq[1:]:
+            preprocess_prefix += f'_{freq}'
+    else:
+        preprocess_prefix = f'_SW{smooth_window.seconds}_DW{detrend_window.seconds}'
+
+
+    run_prefix = f'CS{chunk_size.seconds}_C{cadence.seconds}_O{overlap.seconds}_{instrument}'
+    pdf_file = run_prefix + preprocess_prefix + f'_WS{word_size}_CA{min_cardinality}_{max_cardinality}_MCS{min_cluster_size}_MS{min_samples}_RI{recluster_iterations}_T{threshold}_NLD{node_level_depth}_CSE{cse_text}'
     cache_folder =  cache_folder + run_prefix + '/'
     v = isax_vis.iSaxVisualizer()
     
@@ -846,6 +857,8 @@ def run_experiment(
                             [preprocess],
                             [smooth_window],
                             [detrend_window],
+                            [frequency_weights],
+                            [frequency_spectrum],
                             [cache_folder],
                             [instrument]                            
                             ))
@@ -857,6 +870,8 @@ def run_experiment(
         preprocess_mp,
         smooth_window_mp,
         detrend_window_mp,
+        frequency_weights_mp,
+        frequency_spectrum_mp,
         cache_folder_mp,
         instrument_mp) = map(list, zip(*cache_list))
                                         
@@ -873,6 +888,8 @@ def run_experiment(
                     preprocess_mp,
                     smooth_window_mp,
                     detrend_window_mp,
+                    frequency_weights_mp,
+                    frequency_spectrum_mp,
                     cache_folder_mp,
                     instrument_mp,
                     max_workers=n_processes,
@@ -903,6 +920,8 @@ def run_experiment(
                         preprocess=preprocess,
                         smooth_window=smooth_window,
                         detrend_window=detrend_window,
+                        frequency_weights=frequency_weights,
+                        frequency_spectrum=frequency_spectrum,
                         optimized=True,
                         cache_folder=cache_folder,
                         instrument=instrument,
@@ -943,6 +962,8 @@ def run_experiment(
             preprocess=preprocess,
             smooth_window=smooth_window,
             detrend_window=detrend_window,
+            frequency_weights=frequency_weights,
+            frequency_spectrum=frequency_spectrum,
             optimized=True,
             cache_folder=cache_folder,
             cache=cache,
