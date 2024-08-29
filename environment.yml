@@ -32,6 +32,7 @@ dependencies:
 # iSAX
 - tslearn
 - hdbscan
+- pytorch
 - pip
 - pip:
   - wandb
@@ -43,4 +44,4 @@ dependencies:
   - pyyaml
   - dill
   - git+https://github.com/SiggiGue/pyfilterbank.git
-
+  - graphviz
