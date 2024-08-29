@@ -48,9 +48,6 @@ _SRC_DATA_DIR = os.path.join(_SRC_DIR,'data',)
 
 _EXPONENTS_LIST = [2.15, 1.05, 1.05]
 
-year = '2019'
-month = '05'
-test_cdf_file_path =_SRC_DIR+_OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
 
 def get_test_data(fname_full_path=None,
                   fname = None,
@@ -447,4 +444,24 @@ class filterbank:
         with open(_SRC_DATA_DIR + '/filterbanks/' + fb_prefix +'.pkl', 'wb') as f:
             pickle.dump(filterbank_dictionary,f)
 
-            
+if __name__ == '__main__':
+    year = '2019'
+    month = '05'
+    test_cdf_file_path =_SRC_DIR+_OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
+
+    mag_df = get_test_data(fname_full_path=test_cdf_file_path)
+
+    fb = filterbank()
+    fb.build_melbank_fb()
+    fb.add_DC_HF_filters()
+    fb.visualize_filterbank()
+
+    visualize_filterbank_application(data_df=mag_df,
+                                     melmat=fb.fb_matrix,
+                                     fftfreq=fb.fftfreq,
+                                     data_col='BY_GSE',
+                                     cadence=dt.timedelta(minutes=1),
+                                     avg_sampling_rate = None,
+                                     wordsize_factor = 20,
+                                     xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
+                                     freq_endpt_xticks = fb.edge_freq)
