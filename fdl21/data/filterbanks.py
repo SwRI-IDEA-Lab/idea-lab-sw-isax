@@ -209,6 +209,9 @@ def visualize_filterbank_application(data_df,
     y = data_df[data_col]
     total = np.zeros(data_df[data_col].shape)
     total_paa = np.zeros(data_df[data_col].shape)
+
+    if avg_sampling_rate is None:
+        avg_sampling_rate, _, _ = pm.check_sampling_freq(data_df)
     
     for i in range(melmat.shape[0]):
         filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,

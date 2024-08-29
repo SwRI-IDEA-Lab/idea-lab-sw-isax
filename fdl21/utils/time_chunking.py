@@ -8,6 +8,8 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy import fft
 
+import fdl21.data.prototyping_metrics as pm
+
 # Initialize Python Logger
 logging.basicConfig(format='%(levelname)-4s '
                            '[%(module)s:%(funcName)s:%(lineno)d]'
@@ -93,7 +95,7 @@ def preprocess_fft_filter(mag_df,
     sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
 
     if avg_sampling_rate is None:
-        avg_sampling_rate = 1.0 #default for scipy.fft.fftfreq()
+        avg_sampling_rate, _, _ = pm.check_sampling_freq(mag_df)
     sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
 
     # filter (create and apply)
