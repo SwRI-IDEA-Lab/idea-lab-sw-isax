@@ -375,7 +375,7 @@ class filterbank:
         edge_freq =[]
         # TODO (JK): Potentially need to come back and refine later
         if self.DC:
-            # if first band is DC band, then skip 
+            # if first band is DC band, then skip first row of matrix
             # (bc first edge is accounted for in getting all lower edges)
             matrix = self.fb_matrix[1:,:]
         else:
