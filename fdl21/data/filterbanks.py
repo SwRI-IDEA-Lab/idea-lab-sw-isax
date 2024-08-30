@@ -273,10 +273,6 @@ def visualize_filterbank_application(data_df,
     if freq_endpt_xticks is not None:
         ax.set_xticks(freq_endpt_xticks)
 
-
-def run_test():
-    pass
-
 class filterbank:
     def __init__(self,
                  restore_from_file:str = None):
