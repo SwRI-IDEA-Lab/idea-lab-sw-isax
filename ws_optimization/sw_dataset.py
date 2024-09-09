@@ -102,4 +102,41 @@ class SolarWindDatasetOMNI(Dataset):
     def __getitem__(self, idx:tuple = (1,1,1)):
         idx = dt.datetime(self.year,self.month,day=idx[0],hour=idx[1],minute=idx[2])
         return self.data.loc[idx]
+    
 
+# %% Similar to prototyping metrics but takes a "chunksize"
+class SolarWindDatasetOMNI(Dataset):
+    def __init__(self,
+                 data_dir,
+                 start_date=dt.datetime(2018, 11, 21),
+                 stop_date=dt.datetime(2018, 12, 31),
+                 parameter:str = 'flow_speed',):
+        """[summary]
+        Parameters
+        ----------
+        data_dir : str
+            Path to the data directory. (OMNI data)"""
+        if start_date.year != stop_date.year:
+            years = np.arange(start_date.year, stop_date.year+1,1)
+            for year in years:
+                fname = omni_cdf_fname(data_dir=data_dir,year=year,month=start_date.month)
+        # TODO: Iterate through file names based on start & stop date
+        fname = data_dir + f'/{year}/omni_hro_1min_{year}{month:02d}01_v01.cdf'
+        cdf_file = cdflib.CDF(fname)
+        
+        df = {}
+        df[parameter] = cdf_file[parameter]
+        dates = pm.convert_OMNI_EPOCH(cdf_file)
+        
+        self.data = pd.DataFrame(df,index=pd.DatetimeIndex(dates)).sort_index()
+        self.data.index = self.data.index.round('min')
+
+        self.parameter = parameter
+        
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx:tuple = (1,1,1)):
+        idx = dt.datetime(self.year,self.month,day=idx[0],hour=idx[1],minute=idx[2])
+        return self.data.loc[idx]
