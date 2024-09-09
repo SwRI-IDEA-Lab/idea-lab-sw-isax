@@ -17,18 +17,10 @@ _MODEL_DIR = os.path.dirname(_FILE_DIR)
 os.chdir(_MODEL_DIR)
 import fdl21.data.prototyping_metrics as pm
 
-# %%
-def omni_cdf_fname(data_dir,
-                  year:int = 2000,
-                  month:int = 1):
-    
-    fname = data_dir + f'/{year}/omni_hro_1min_{year}{month:02d}01_v01.cdf'
-    return fname
-
 # %% Get single cdf file (i.e. getitem = 1 month of data)
 class SolarWindDataset(Dataset):
     def __init__(self,
-                 fname,
+                 dir_path:str,
                  parameter:str = 'flow_speed',):
         """[summary]
         Parameters
@@ -36,7 +28,7 @@ class SolarWindDataset(Dataset):
         fnaame : str
             Path to the directory of cdf data files."""
         self.parameter = parameter
-        self.files = glob.glob(fname+'/**',recursive=True)
+        self.files = glob.glob(dir_path+'/**',recursive=True)
         
 
     def __len__(self):
