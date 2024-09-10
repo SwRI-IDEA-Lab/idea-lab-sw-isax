@@ -32,14 +32,14 @@ from scipy import fft
 import datetime as dt
 import os,sys
 
-import fdl21.data.prototyping_metrics as pm
-import fdl21.utils.time_chunking as tc
-
-
 _FILE_DIR = os.path.dirname( os.path.abspath(__file__))
 _MODEL_DIR = os.path.dirname(_FILE_DIR)
 _SRC_DIR = os.path.dirname(_MODEL_DIR)
 sys.path.append(_SRC_DIR)
+
+# local imports
+import fdl21.data.prototyping_metrics as pm
+import fdl21.utils.time_chunking as tc
 
 _PSP_MAG_DATA_DIR = '/sw-data/psp/mag_rtn/'
 _WIND_MAG_DATA_DIR = '/sw-data/wind/mfi_h2/'
