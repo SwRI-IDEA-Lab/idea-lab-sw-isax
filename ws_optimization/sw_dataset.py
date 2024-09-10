@@ -37,4 +37,4 @@ class SolarWindDataset(Dataset):
     def __getitem__(self, idx):
         fname = self.files[idx]
         self.data = cdflib.CDF(fname)
-        return self.data[self.parameter], fname
+        return torch.tensor(self.data[self.parameter])
