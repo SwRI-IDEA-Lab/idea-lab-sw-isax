@@ -1,3 +1,4 @@
+# libraries
 import torch
 from torch.utils.data import Dataset
 import datetime as dt
@@ -17,23 +18,45 @@ _MODEL_DIR = os.path.dirname(_FILE_DIR)
 os.chdir(_MODEL_DIR)
 import fdl21.data.prototyping_metrics as pm
 import ws_optimization.sw_dataset as sw
+import fdl21.data.filterbanks as fb
 
-# %% Get 1D signal from dataloader
+# %% [markdown]
+# ## Get 1D signal from dataloader 
+
+# %% 1D signal from dataloader 
 data_load = swd.SolarWindDataset(dir_path = 'C:/Users/jkobayashi/gh_repos/idea-lab-sw-isax/sw-data/nasaomnireader/1999')
 signal_1d = data_load.__getitem__(10)
 
-# %% Apply fourier transform using PyTorch FFT (should return 1D tensor)
+# %% [markdown]
+# ## Apply fourier transform using PyTorch FFT 
+# (should return 1D tensor)
 
+ # %% Fourier transform
 
-# %% Create a 1D tensor with frequencies of triangle apexes
+# %% [markdown]
+# ## Create a 1D tensor with frequencies of triangle apexes 
 
+# %% Filterbanks (from local filterbank module)
+fbank = fb.filterbank(restore_from_file='C:/Users/jkobayashi/gh_repos/idea-lab-sw-isax/data/filterbanks/fb_0.01_1.66_3.33_5.0_DC_HF.pkl')
+fbank.visualize_filterbank()
 
-# %% Create a 2D that will hold the filtered spectrum for each filter 
+# %% 
+mat = torch.tensor(fbank.fb_matrix)     # tensor of filterbank matrix (triangles)
+freq = torch.tensor(fbank.fftfreq)      # 1D tensor of frequencies
+
+# %% [markdown]
+# ## Create a 2D that will hold the filtered spectrum for each filter  
 # (Dimensions = n_filters x length(fourier_spectrum))
 
+# %%
 
-# %% Loop over apexes, multiply triangle frequencies and multiply by fourier spectrum
+# %% [markdown]
+# ## Loop over apexes, multiply triangle frequencies and multiply by fourier spectrum
 # Place result in 2D repository tensor
 
+# %%
 
-# %% Inverse Fourier transform on each row and add to get original signal
+# %% [markdown]
+# ## Inverse Fourier transform on each row and add to get original signal
+
+# %%
