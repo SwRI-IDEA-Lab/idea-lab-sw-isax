@@ -12,7 +12,7 @@ _MODEL_DIR = os.path.dirname(_FILE_DIR)
 os.chdir(_MODEL_DIR)
 import fdl21.data.prototyping_metrics as pm
 import ws_optimization.sw_dataset as swd
-import fdl21.data.filterbanks as fb
+import fdl21.data.build_filterbanks as fb
 # %% [markdown] ==================================================================================================
 # ## Get 1D signal from dataloader 
 # %% 1D signal from dataloader ----------------------------------------------------------------------------------

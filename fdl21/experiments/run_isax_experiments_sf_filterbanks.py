@@ -43,7 +43,7 @@ from copy import deepcopy
 import fdl21.data.helper_funcs as hf
 import fdl21.isax_model as isax_model
 import fdl21.visualization.isax_visualization as isax_vis
-import fdl21.data.filterbanks as fb
+import fdl21.data.build_filterbanks as fb
 import fdl21.experiments.run_isax_experiments_sf as isax_experiment
 
 wandb.login() 
