@@ -37,4 +37,13 @@ class SolarWindDataset(Dataset):
     def __getitem__(self, idx):
         fname = self.files[idx]
         self.data = cdflib.CDF(fname)
-        return torch.tensor(self.data[self.parameter])
+        self.data = self.data[self.parameter]
+        # TODO: Preprocessing data (e.g. use cdf of data that has already dealt with missing data)
+        fill_values = {'F':9999.99,
+                    'flow_speed':99999.9,
+                    'proton_density':999.99}
+        fill = fill_values[self.parameter]
+        self.data[self.data==fill] = np.nan
+        self.data = pd.DataFrame(self.data).interpolate()
+
+        return torch.tensor(self.data.values.ravel())
