@@ -25,8 +25,8 @@ signal_1d
 # (should return 1D tensor)
  # %% Fourier transform ------------------------------------------------------------------------------------------
 sig_fft = torch.fft.fft(signal_1d)# - torch.mean(signal_1d))
-print(sig_fft)
-sig_fft = torch.real(sig_fft)
+# print(sig_fft)
+# sig_fft = torch.real(sig_fft)
 print(sig_fft)
 
 # %% [markdown] ==================================================================================================
@@ -58,7 +58,7 @@ all_filtered_signals = torch.empty(mat.shape[0], signal_1d.shape[0])
 sample_freq = torch.fft.fftfreq(signal_1d.shape[0],d=1/60)
 total_sig = torch.zeros(signal_1d.shape[0])
 for i,bank in enumerate(mat):
-    filter = np.interp(np.abs(sample_freq),freq,bank,left=None,right=None,period=None)
+    filter = torch.tensor(np.interp(np.abs(sample_freq),freq,bank,left=None,right=None,period=None))
     filteredYF = sig_fft.clone()
     filteredYF = filteredYF*filter
 
@@ -69,7 +69,7 @@ for i,bank in enumerate(mat):
 
 # %%
 fig, axes = plt.subplots(figsize=(8,5))
-axes.plot(signal_1d,label='Original Signal')
+axes.plot(signal_1d,linewidth=5,label='Original Signal')
 axes.plot(total_sig,label='Total Filtered Signal')
 axes.legend()
 plt.show()
