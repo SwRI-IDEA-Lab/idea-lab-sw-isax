@@ -45,3 +45,4 @@ dependencies:
   - dill
   - git+https://github.com/SiggiGue/pyfilterbank.git
   - graphviz
+  - cdflib
