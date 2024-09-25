@@ -9,6 +9,7 @@ from scipy.interpolate import interp1d
 from scipy import fft
 
 import fdl21.data.prototyping_metrics as pm
+import fdl21.data.build_filterbanks as fb
 
 # Initialize Python Logger
 logging.basicConfig(format='%(levelname)-4s '
@@ -99,14 +100,11 @@ def preprocess_fft_filter(mag_df,
     sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
 
     # filter (create and apply)
+    # TODO: probably just better to change these to assert statements (instead of supplementing arbitrary melbanks)
     if frequency_weights.size == 0:
-        # based on melbank matrices but still generally arbitrary
-        step = 0.05
-        up = np.arange(0,1,step)
-        down = np.arange(1,0-step,-step)
-        weights = np.concatenate((up,down),axis=0)
-        zeros = np.zeros(mag_df.shape[0] - len(weights))
-        frequency_weights = np.concatenate((weights,zeros),axis=0)
+        fb = filterbank()
+        fb.build_melbank_fb(num_mel_bands=1)
+        frequency_weights = fb.fb_matrix[0]
     if frequency_spectrum.size == 0:
         frequency_spectrum = np.linspace(0,8000,mag_df.shape[0])
 
