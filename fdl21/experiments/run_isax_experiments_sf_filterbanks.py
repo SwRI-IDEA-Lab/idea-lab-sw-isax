@@ -349,19 +349,23 @@ def run_filterbanks(
         for each component.
         By default False
     """
+    # Load saved filterbank (pickle) file
     isax_fb = fb.filterbank(restore_from_file=filterbank_file)
 
+    # Run experiment for each filterbank
     for i,bank in enumerate(isax_fb.fb_matrix):
-        if  isax_fb.DC or isax_fb.HF:
-            if isax_fb.DC and i == 0:
+        # Extract edge frequencies for each filter
+        if  isax_fb.DC or isax_fb.HF:                # if DC or HF filters exist...
+            if isax_fb.DC and i == 0:                               # if DC filter, frequencies are first two
                 bank_edge = isax_fb.edge_freq[:2]
-            elif isax_fb.HF and i == isax_fb.fb_matrix.shape[0]:
+            elif isax_fb.HF and i == isax_fb.fb_matrix.shape[0]:    # if HF filter, frequencies are last two
                 bank_edge = np.array([isax_fb.edge_freq[-2],isax_fb.edge_freq[-1]])
             else:
                 bank_edge = isax_fb.edge_freq[i-1:i+2]
         else:
             bank_edge = isax_fb.edge_freq[i:i+3]
 
+        # Run experiment
         isax_experiment.run_experiment(
             input_file=input_file,
             start_date=start_date,
