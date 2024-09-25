@@ -30,10 +30,10 @@ from scipy import fft
 
 import datetime as dt
 
-import os
+import os,sys
 _FILE_DIR = os.path.dirname(__file__)
 _SRC_DIR = os.path.dirname(_FILE_DIR)
-os.chdir(_SRC_DIR)
+sys.path.append(_SRC_DIR)
 import fdl21.data.prototyping_metrics as pm
 import fdl21.utils.time_chunking as tc
 # %% Load test OMNI data
