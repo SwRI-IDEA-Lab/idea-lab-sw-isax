@@ -96,14 +96,9 @@ def preprocess_fft_filter(mag_df,
 
     sample_freq = fft.fftfreq(mag_df.shape[0],d=cadence.total_seconds())
 
-    # filter (create and apply)
-    # TODO: probably just better to change these to assert statements (instead of supplementing arbitrary melbanks)
-    if frequency_weights.size == 0:
-        fb = filterbank()
-        fb.build_melbank_fb(num_mel_bands=1)
-        frequency_weights = fb.fb_matrix[0]
-    if frequency_spectrum.size == 0:
-        frequency_spectrum = np.linspace(0,8000,mag_df.shape[0])
+    # apply filter 
+    assert frequency_weights.size != 0, 'Frequency weights is empty, please provide valid array of frequency weights'
+    assert frequency_spectrum.size != 0, 'Frequency spectrum is empty, please provide valid array of frequency spectrum associated with the weights'
 
     mb_filter =  np.interp(np.abs(sample_freq),frequency_spectrum,frequency_weights,left=None,right=None,period=None)
     filteredYF = np.transpose(sig_fft_df.T*mb_filter)
