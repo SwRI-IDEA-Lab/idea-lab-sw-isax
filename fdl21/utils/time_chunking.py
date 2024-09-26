@@ -79,8 +79,7 @@ def preprocess_fft_filter(mag_df,
                           cols,
                           cadence = timedelta(seconds=300),
                           frequency_weights=np.array([]),
-                          frequency_spectrum=np.array([]),
-                          avg_sampling_rate=None
+                          frequency_spectrum=np.array([])
                           ):
     """Preprocess mag_df using fft filters
     
@@ -95,9 +94,7 @@ def preprocess_fft_filter(mag_df,
     # FFT
     sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
 
-    if avg_sampling_rate is None:
-        avg_sampling_rate, _, _ = pm.check_sampling_freq(mag_df)
-    sample_freq = fft.fftfreq(mag_df.shape[0],d=1/avg_sampling_rate)
+    sample_freq = fft.fftfreq(mag_df.shape[0],d=cadence.total_seconds())
 
     # filter (create and apply)
     # TODO: probably just better to change these to assert statements (instead of supplementing arbitrary melbanks)
@@ -252,7 +249,6 @@ def time_chunking(
     smooth_window=timedelta(seconds=30),
     frequency_weights=np.array([]),
     frequency_spectrum=np.array([]),
-    avg_sampling_rate=None,
     optimized = False,
     return_pandas=False
 ):
@@ -296,9 +292,6 @@ def time_chunking(
     detrend_window : datetime.timedelta
         Size of the detrend window        
 
-    avg_sampling_rate : int
-        Average sampling rate compute by prototyping metrics.
-
     min_datapoints : float
         Minimum number of datapoints you must have in a time period to perform the smoothing.
 
@@ -332,8 +325,7 @@ def time_chunking(
                                        cols=cols,
                                        cadence=cadence,
                                        frequency_weights=frequency_weights,
-                                       frequency_spectrum=frequency_spectrum,
-                                       avg_sampling_rate=avg_sampling_rate)
+                                       frequency_spectrum=frequency_spectrum)
     # Get interpolated sequences
     interp_time_seq,interp_mag_seq = get_sequences(mag_df=mag_df,
                                                    cols=cols,
