@@ -55,8 +55,7 @@ def get_test_data(fname_full_path=None,
                   start_date = dt.datetime(year=2019,month=5,day=15,hour=0),
                   end_date = dt.datetime(year=2019,month=5,day=16,hour=0),
                   rads_norm=True,
-                  orbit_fname = None,
-                  return_sample_rate = False):
+                  orbit_fname = None):
     """Retrieve a set of data to test and visualize filterbank application
     
     Parameters
@@ -123,9 +122,6 @@ def get_test_data(fname_full_path=None,
     mag_df.interpolate(inplace=True)
     mag_df = mag_df[start_date:end_date]
 
-    if return_sample_rate:
-        avg_sampling_rate, _, _ = pm.check_sampling_freq(mag_df)
-        return mag_df, avg_sampling_rate
 
     return mag_df
 
@@ -173,19 +169,19 @@ def visualize_filterbank(fb_matrix,
     plt.tight_layout()
     plt.show()
 
-
 def visualize_filterbank_application(data_df,
                                      melmat,
                                      fftfreq,
                                      data_col = None,
                                      cadence = dt.timedelta(seconds=300),
-                                     avg_sampling_rate = None,
                                      figsize=(24,8),
                                      wordsize_factor=20,
                                      gs_wspace = 0.2,
                                      gs_hspace = 0,
                                      xlim = None,
-                                     freq_endpt_xticks = None
+                                     freq_endpt_xticks = None,
+                                     DC = False,
+                                     HF = False
                                      ):
     """Plot comprehensive visualization of filterbank and its application to a set of test data.
     Plot includes the filterbank, raw test data, decomposition of filterbank preprocessed data and PAA, 
@@ -207,27 +203,30 @@ def visualize_filterbank_application(data_df,
     total = np.zeros(data_df[data_col].shape)
     total_paa = np.zeros(data_df[data_col].shape)
 
-    if avg_sampling_rate is None:
-        avg_sampling_rate, _, _ = pm.check_sampling_freq(data_df)
     
     for i in range(melmat.shape[0]):
         filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,
                                                 cols=data_df.columns,
                                                 cadence=cadence,
                                                 frequency_weights=melmat[i,:],
-                                                frequency_spectrum=fftfreq,
-                                                avg_sampling_rate=avg_sampling_rate)
+                                                frequency_spectrum=fftfreq)
         
         filtered_sig = np.array(filtered_sig[data_col])
         
         total = total + filtered_sig
 
         # TODO: make wordsize calculation less arbitrary
-        word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
+        if freq_endpt_xticks is not None:
+            if DC:
+                word_size = int(wordsize_factor*(3*freq_endpt_xticks[i] + 1 + 3*freq_endpt_xticks[np.max([0, i-2])]))
+            else:
+                word_size = int(wordsize_factor*(3*freq_endpt_xticks[i+1] + 1 + 3*freq_endpt_xticks[np.max([0, i-1])]))
+        else:
+            word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:]).squeeze()
 
-        xpaa = np.min(x) + np.arange(0,word_size)/(word_size)*(np.max(x)-np.min(x))
+        xpaa = np.min(x) + np.arange(0,word_size)/(word_size+1)*(np.max(x)-np.min(x))
 
         paa_sfull = total.copy()*0
 
@@ -245,10 +244,10 @@ def visualize_filterbank_application(data_df,
 
         if i==0:
             ax0.set_title('Filter bank decomposition')
-
+        
 
     ax0 = fig.add_subplot(gs[3:5,2])   
-    ax0.plot(x[0:-1:wordsize_factor], total_paa[0:-1:wordsize_factor], c='r')
+    ax0.plot(x, total_paa, c='r')
     ax0.set_title('Series recovered from filter bank PAA')
     ax0.set_xticks([])
     ax0.set_yticks([])
@@ -272,6 +271,7 @@ def visualize_filterbank_application(data_df,
     ax.set_title('Mel filter bank')
     if freq_endpt_xticks is not None:
         ax.set_xticks(freq_endpt_xticks)
+    plt.show()
 
 class filterbank:
     def __init__(self,
@@ -447,17 +447,32 @@ if __name__ == '__main__':
 
     mag_df = get_test_data(fname_full_path=test_cdf_file_path)
 
+    #=====================================
+    # fb = filterbank()
+    # fb.build_melbank_fb()
+    # fb.add_DC_HF_filters()
+    # fb.visualize_filterbank()
+    #=====================================
+
+    #=====================================
     fb = filterbank()
-    fb.build_melbank_fb()
-    fb.add_DC_HF_filters()
+    fb.build_melbank_fb(num_mel_bands=7,sample_rate=1/60,freq_max=0.001)
+    # fb.add_DC_HF_filters()
     fb.visualize_filterbank()
+    #=====================================
+
+    #=====================================
+    # fb = filterbank(restore_from_file='/home/jkobayashi/gh_repos/idea-lab-sw-isax/data/filterbanks/fb_0.01_111.57_240.91_390.87_564.74_766.3_1000.0_DC_HF.pkl')
+    # fb.visualize_filterbank()
+    #=====================================
 
     visualize_filterbank_application(data_df=mag_df,
                                      melmat=fb.fb_matrix,
                                      fftfreq=fb.fftfreq,
                                      data_col='BY_GSE',
                                      cadence=dt.timedelta(minutes=1),
-                                     avg_sampling_rate = None,
                                      wordsize_factor = 20,
                                      xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
-                                     freq_endpt_xticks = fb.edge_freq)
+                                     freq_endpt_xticks = fb.edge_freq,
+                                     DC=fb.DC,
+                                     HF=fb.HF)
