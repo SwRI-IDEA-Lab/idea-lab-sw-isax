@@ -237,7 +237,7 @@ def visualize_filterbank_application(data_df,
                                      gs_wspace = 0.2,
                                      gs_hspace = 0,
                                      xlim = None,
-                                     edge_freq = None,
+                                     center_freq = None,
                                      DC = False,
                                      HF = False
                                      ):
@@ -276,10 +276,18 @@ def visualize_filterbank_application(data_df,
         total = total + filtered_sig
 
         # TODO: Utilize center_frequencies, instead of edge_freq and if/else DC statement?
-        freq_idx = i if DC else i+1
-        word_size = int(wordsize_factor*data_span.total_seconds()*edge_freq[freq_idx])
-        if word_size > len(x):
-            word_size = len(x)
+        if HF and i == melmat.shape[0]-1:
+            word_size = int(0.9*len(x))
+        else:
+            if DC and i == 0:
+                freq = (center_freq[1]-center_freq[0])/2
+            else:
+                freq = center_freq[i]
+            word_size = int(wordsize_factor*data_span.total_seconds()*freq)
+            
+            if word_size > len(x):
+                word_size = len(x)
+
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:])
 
@@ -288,24 +296,24 @@ def visualize_filterbank_application(data_df,
         total_paa = total_paa + paa_sfull 
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
-        ax0.plot(x, filtered_sig)
+        ax0.plot(x, filtered_sig,label=f'center_freq = {center_freq[i]:.3e}')
         ax0.plot(x, paa_sfull, c='r',label=f'word_size = {word_size}')
         ax0.set_xticks([])
         ax0.set_yticks([])
-        ax0.legend()
+        ax0.legend(bbox_to_anchor=(1, 1))
 
         if i==0:
             ax0.set_title('Filter bank decomposition')
         
 
-    ax0 = fig.add_subplot(gs[3:5,2])   
+    ax0 = fig.add_subplot(gs[9:11,0])   
     ax0.plot(x, total_paa, c='r')
     ax0.set_title('Series recovered from filter bank PAA')
     ax0.set_xticks([])
     ax0.set_yticks([])
 
 
-    ax0 = fig.add_subplot(gs[4:6,0])   
+    ax0 = fig.add_subplot(gs[5:7,0])   
     ax0.plot(x, y-np.mean(y))
     ax0.set_title('Original series')
     # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
@@ -321,7 +329,7 @@ def visualize_filterbank_application(data_df,
     ax.set_xlabel('Frequency (Hz)')
     ax.set_xlim(xlim)
     ax.set_title('Mel filter bank')
-    ax.set_xticks(edge_freq)
+    ax.set_xticks(center_freq)
     ax.ticklabel_format(style='sci',scilimits=(0,0),axis='x')
     plt.show()
 
@@ -466,6 +474,6 @@ if __name__ == '__main__':
                                      cadence=dt.timedelta(minutes=1),
                                      wordsize_factor = 3,
                                      xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
-                                     edge_freq = fb.edge_freq,
+                                     center_freq = fb.center_frequencies,
                                      DC=fb.DC,
                                      HF=fb.HF)
