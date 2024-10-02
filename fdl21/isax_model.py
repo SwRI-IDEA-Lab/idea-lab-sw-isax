@@ -410,7 +410,6 @@ class iSaxPipeline(object):
                 detrend_window=detrend_window,
                 frequency_weights=frequency_weights,
                 frequency_spectrum=frequency_spectrum,
-                avg_sampling_rate=avg_sampling_rate, 
                 optimized=optimized
             )
         et_t = time.time()
