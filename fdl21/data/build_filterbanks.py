@@ -393,8 +393,6 @@ class filterbank:
     def save_filterbank(self):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
         as a dictionary to a local pickle file"""
-        if self.edge_freq is None:
-            self.get_melbank_edge_freq()
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
