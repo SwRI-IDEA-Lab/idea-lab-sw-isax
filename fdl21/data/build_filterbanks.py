@@ -224,16 +224,11 @@ def visualize_filterbank_application(data_df,
         else:
             word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
         paa = PiecewiseAggregateApproximation(word_size)
-        paa_sequence = paa.fit_transform(filtered_sig[None,:]).squeeze()
+        paa_sequence = paa.fit_transform(filtered_sig[None,:])
 
-        xpaa = np.min(x) + np.arange(0,word_size)/(word_size+1)*(np.max(x)-np.min(x))
+        paa_sfull = paa.inverse_transform(paa_sequence)[0].ravel()
 
-        paa_sfull = total.copy()*0
-
-        for j, segmentx in enumerate(xpaa):
-            paa_sfull[np.array(x)>=segmentx] = paa_sequence[j]
-
-        total_paa = total_paa + paa_sfull    
+        total_paa = total_paa + paa_sfull 
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
         ax0.plot(x, filtered_sig)
