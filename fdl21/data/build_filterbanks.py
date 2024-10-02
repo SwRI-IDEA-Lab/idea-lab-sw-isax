@@ -49,7 +49,6 @@ _SRC_DATA_DIR = os.path.join(_SRC_DIR,'data',)
 
 _EXPONENTS_LIST = [2.15, 1.05, 1.05]
 
-
 def get_test_data(fname_full_path=None,
                   fname = None,
                   instrument = 'omni',
@@ -126,7 +125,6 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
-#==============================================================================
 def build_triangle_filterbank(num_bands=12,
                             frequencies = [],
                             freq_range = (0,5),
@@ -192,7 +190,7 @@ def build_triangle_filterbank(num_bands=12,
         )
 
     return melmat, freqs, (frequencies,lower_edges,center_frequencies, upper_edges)
-#==============================================================================
+
 
 def add_DC_HF_filters(fb_matrix,
                       DC = True,
@@ -377,10 +375,16 @@ class filterbank:
         self.fb_matrix = add_DC_HF_filters(fb_matrix=self.fb_matrix,
                                            DC=DC,
                                            HF=HF)
-        if DC and self.center_frequencies[0] != self.lower_edges[0]:
-            self.center_frequencies = np.insert(self.center_frequencies,0,self.lower_edges[0])
-        if HF and self.ceneter_frequencies[-1] != self.upper_edges[-1]:
-            self.center_frequencies = np.append(self.center_frequencies,self.upper_edges[-1])
+        if DC:
+            if self.center_frequencies[0] != self.edge_freq[0]:
+                self.center_frequencies = np.insert(self.center_frequencies,0,self.edge_freq[0])
+            if self.upper_edges[0] != self.edge_freq[1]:
+                self.upper_edges = np.insert(self.upper_edges,0,self.edge_freq[1])
+        if HF:
+            if self.center_frequencies[-1] != self.edge_freq[-1]:
+                self.center_frequencies = np.append(self.center_frequencies,self.edge_freq[-1])
+            if self.lower_edges[-1] != self.edge_freq[-2]:
+                self.lower_edges = np.append(self.lower_edges,self.edge_freq[-2])
         self.DC = DC
         self.HF = HF
     
@@ -436,8 +440,18 @@ if __name__ == '__main__':
                         sample_rate=1/60,
                         freq_range=(0.0,0.001),
                         num_fft_bands=int(1E6))
-    # fb.add_DC_HF_filters()
+    fb.add_DC_HF_filters()
     fb.visualize_filterbank()
+    #=====================================
+
+    #=====================================
+    # fb = filterbank()
+    # fb.build_triangle_fb(num_bands=4,
+    #                     sample_rate=1/60,
+    #                     frequencies=[0.0,0.00025,0.00037,0.00065,0.000828,0.001],
+    #                     num_fft_bands=int(1E6))
+    # # fb.add_DC_HF_filters()
+    # fb.visualize_filterbank()
     #=====================================
 
     #=====================================
