@@ -265,6 +265,7 @@ def visualize_filterbank_application(data_df,
 
     
     for i in range(melmat.shape[0]):
+        # get filtered signal
         filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,
                                                 cols=data_df.columns,
                                                 cadence=cadence,
@@ -275,7 +276,7 @@ def visualize_filterbank_application(data_df,
         
         total = total + filtered_sig
 
-        # TODO: Utilize center_frequencies, instead of edge_freq and if/else DC statement?
+        # wordsize calculation
         if HF and i == melmat.shape[0]-1:
             word_size = int(0.9*len(x))
         else:
@@ -284,10 +285,11 @@ def visualize_filterbank_application(data_df,
             else:
                 freq = center_freq[i]
             word_size = int(wordsize_factor*data_span.total_seconds()*freq)
-            
+
             if word_size > len(x):
                 word_size = len(x)
-
+        
+        # PAA application
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:])
 
@@ -296,11 +298,11 @@ def visualize_filterbank_application(data_df,
         total_paa = total_paa + paa_sfull 
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
-        ax0.plot(x, filtered_sig,label=f'center_freq = {center_freq[i]:.3e}')
+        ax0.plot(x, filtered_sig,label=f'center_freq = {center_freq[i]:.2e}')
         ax0.plot(x, paa_sfull, c='r',label=f'word_size = {word_size}')
         ax0.set_xticks([])
         ax0.set_yticks([])
-        ax0.legend(bbox_to_anchor=(1, 1))
+        ax0.legend(loc='upper right',bbox_to_anchor=(1.4, 1))
 
         if i==0:
             ax0.set_title('Filter bank decomposition')
