@@ -3,6 +3,7 @@ import cdflib
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
+from numpy import abs, append, arange, insert, linspace, log10, round, zeros
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -125,6 +126,74 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
+#==============================================================================
+def build_triangle_filterbank(num_bands=12,
+                            frequencies = [],
+                            freq_range = (0,5),
+                            num_fft_bands=513, 
+                            sample_rate=16000):
+    """Returns tranformation matrix for mel spectrum.
+
+    Parameters
+    ----------
+    num_mel_bands : int
+        Number of mel bands. Number of rows in melmat.
+        Default: 24
+    freq_min : scalar
+        Minimum frequency for the first band.
+        Default: 64
+    freq_max : scalar
+        Maximum frequency for the last band.
+        Default: 8000
+    num_fft_bands : int
+        Number of fft-frequency bands. This ist NFFT/2+1 !
+        number of columns in melmat.
+        Default: 513   (this means NFFT=1024)
+    sample_rate : scalar
+        Sample rate for the signals that will be used.
+        Default: 44100
+
+    Returns
+    -------
+    melmat : ndarray
+        Transformation matrix for the mel spectrum.
+        Use this with fft spectra of num_fft_bands_bands length
+        and multiply the spectrum with the melmat
+        this will tranform your fft-spectrum
+        to a mel-spectrum.
+
+    frequencies : tuple (ndarray <num_mel_bands>, ndarray <num_fft_bands>)
+        Center frequencies of the mel bands, center frequencies of fft spectrum.
+
+    """
+    if len(frequencies) == 0:
+        freq_min, freq_max = freq_range
+        delta_freq = abs(freq_max - freq_min) / (num_bands + 1.0)
+        frequencies = freq_min + delta_freq*arange(0, num_bands+2)
+    assert len(frequencies) == num_bands + 2, "frequencies must have length num_bands + 2"
+    lower_edges = frequencies[:-2]
+    upper_edges = frequencies[2:]
+    center_frequencies = frequencies[1:-1]
+
+    freqs = linspace(0.0, sample_rate/2.0, num_fft_bands)
+    melmat = zeros((num_bands, num_fft_bands))
+
+    for iband, (center, lower, upper) in enumerate(zip(
+            center_frequencies, lower_edges, upper_edges)):
+
+        left_slope = (freqs >= lower)  == (freqs <= center)
+        melmat[iband, left_slope] = (
+            (freqs[left_slope] - lower) / (center - lower)
+        )
+
+        right_slope = (freqs >= center) == (freqs <= upper)
+        melmat[iband, right_slope] = (
+            (upper - freqs[right_slope]) / (upper - center)
+        )
+
+    return melmat, freqs, (frequencies,lower_edges,center_frequencies, upper_edges)
+#==============================================================================
+
 def add_DC_HF_filters(fb_matrix,
                       DC = True,
                       HF = True):
@@ -146,25 +215,16 @@ def add_DC_HF_filters(fb_matrix,
 
 def visualize_filterbank(fb_matrix,
                          fftfreq,
-                         xlim:tuple = None,
-                         melfreq = None):
+                         xlim:tuple = None):
     """Simple plot of filterbank"""
     fig,ax = plt.subplots(figsize=(8,3))
     ax.plot(fftfreq,fb_matrix.T)
     ax.grid(True)
     ax.set_ylabel('Weight')
-    ax.set_xlabel('Frequency / Hz')
+    ax.set_xlabel('Frequency  (Hz)')
     if xlim is None:
         xlim = (np.min(fftfreq),np.max(fftfreq))
     ax.set_xlim(xlim)
-
-    if melfreq is not None:
-        ax2 = ax.twiny()
-        ax2.xaxis.set_ticks_position('top')
-        ax2.set_xlim(xlim)
-        ax2.xaxis.set_ticks(melbank.mel_to_hertz(melfreq))
-        ax2.xaxis.set_ticklabels(['{:.0f}'.format(mf) for mf in melfreq])
-        ax2.set_xlabel('Frequency / mel')
     
     plt.tight_layout()
     plt.show()
@@ -175,11 +235,11 @@ def visualize_filterbank_application(data_df,
                                      data_col = None,
                                      cadence = dt.timedelta(seconds=300),
                                      figsize=(24,8),
-                                     wordsize_factor=20,
+                                     wordsize_factor=2,
                                      gs_wspace = 0.2,
                                      gs_hspace = 0,
                                      xlim = None,
-                                     freq_endpt_xticks = None,
+                                     edge_freq = None,
                                      DC = False,
                                      HF = False
                                      ):
@@ -203,6 +263,8 @@ def visualize_filterbank_application(data_df,
     total = np.zeros(data_df[data_col].shape)
     total_paa = np.zeros(data_df[data_col].shape)
 
+    data_span = x[-1]-x[0]
+
     
     for i in range(melmat.shape[0]):
         filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,
@@ -216,13 +278,10 @@ def visualize_filterbank_application(data_df,
         total = total + filtered_sig
 
         # TODO: make wordsize calculation less arbitrary
-        if freq_endpt_xticks is not None:
-            if DC:
-                word_size = int(wordsize_factor*(3*freq_endpt_xticks[i] + 1 + 3*freq_endpt_xticks[np.max([0, i-2])]))
-            else:
-                word_size = int(wordsize_factor*(3*freq_endpt_xticks[i+1] + 1 + 3*freq_endpt_xticks[np.max([0, i-1])]))
-        else:
-            word_size = wordsize_factor*(i + 1 + 3*np.max([0, i-2]) )
+        freq_idx = i if DC else i+1
+        word_size = int(wordsize_factor*data_span.total_seconds()*edge_freq[freq_idx])
+        if word_size > len(x):
+            word_size = len(x)
         paa = PiecewiseAggregateApproximation(word_size)
         paa_sequence = paa.fit_transform(filtered_sig[None,:])
 
@@ -248,7 +307,7 @@ def visualize_filterbank_application(data_df,
     ax0.set_yticks([])
 
 
-    ax0 = fig.add_subplot(gs[3:5,0])   
+    ax0 = fig.add_subplot(gs[4:6,0])   
     ax0.plot(x, y-np.mean(y))
     ax0.set_title('Original series')
     # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
@@ -261,11 +320,11 @@ def visualize_filterbank_application(data_df,
     ax.plot(fftfreq, melmat.T)
     ax.grid(True)
     ax.set_ylabel('Weight')
-    ax.set_xlabel('Frequency / Hz')
+    ax.set_xlabel('Frequency (Hz)')
     ax.set_xlim(xlim)
     ax.set_title('Mel filter bank')
-    if freq_endpt_xticks is not None:
-        ax.set_xticks(freq_endpt_xticks)
+    ax.set_xticks(edge_freq)
+    ax.ticklabel_format(style='sci',scilimits=(0,0),axis='x')
     plt.show()
 
 class filterbank:
@@ -288,12 +347,12 @@ class filterbank:
             self.DC = fb_dict['DC']
             self.HF = fb_dict['HF']
 
-    def build_melbank_fb(self,
-                         num_mel_bands = 2,
-                         freq_min = 0,
-                         freq_max = 5,
-                         num_fft_bands:int = int(1e6),
-                         sample_rate = 16000):
+    def build_triangle_fb(self,
+                         num_bands = 2,
+                         frequencies = [],
+                         freq_range = (0,5),
+                         num_fft_bands=513, 
+                         sample_rate=16000):
         """Build a filterbank, entirely using pyfilterbank's melbank 
         ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html))
         
@@ -301,50 +360,18 @@ class filterbank:
         (on the *Mel* scale) in a way that is spaced lienarly at low frequencies 
         and logarithmically at higher frequencies. 
         """
-        melmat, (melfreq,fftfreq) = melbank.compute_melmat(num_mel_bands=num_mel_bands,
-                                                           freq_min=freq_min,
-                                                           freq_max=freq_max,
-                                                           num_fft_bands=num_fft_bands,
-                                                           sample_rate=sample_rate)
+        melmat, fftfreq, (frequencies,lower_edges,center_frequencies,upper_edges) = build_triangle_filterbank(num_bands=num_bands,
+                                                                                                    frequencies=frequencies,
+                                                                                                    freq_range=freq_range,
+                                                                                                    num_fft_bands=num_fft_bands, 
+                                                                                                    sample_rate=sample_rate)
         
         self.fb_matrix = melmat 
         self.fftfreq = fftfreq
-        self.melfreq = melfreq
-    
-    def build_manual_melbank(self,
-                             edge_freq:list = None,
-                             fft_freq_range = (0,8000),
-                             num_fft_bands:int = int(1e6)):
-        """Build melbank-like filterbank manually by specifically indicating frequencies of 
-        interest (in hertz; no mel frequencies involved)."""
-        if edge_freq is None:
-            edge_freq = [0.0,1.5,3.5,5.0]
-        freqs = np.linspace(fft_freq_range[0],fft_freq_range[1],num_fft_bands)
-
-        # the following is identical to pyfilterbank melbank, but frequencies are always in hertz
-        # (pyfilterbank finds center_frequencies, etc. first in mel-scale then converts to hz)
-        center_frequencies_hz = edge_freq[1:-1]
-        lower_edges_hz = edge_freq[:-2]
-        upper_edges_hz = edge_freq[2:]
-        melmat = np.zeros((len(center_frequencies_hz), num_fft_bands))
-
-        for imelband, (center, lower, upper) in enumerate(zip(
-                center_frequencies_hz, lower_edges_hz, upper_edges_hz)):
-
-            left_slope = (freqs >= lower)  == (freqs <= center)
-            melmat[imelband, left_slope] = (
-                (freqs[left_slope] - lower) / (center - lower)
-            )
-
-            right_slope = (freqs >= center) == (freqs <= upper)
-            melmat[imelband, right_slope] = (
-                (upper - freqs[right_slope]) / (upper - center)
-            )
-        
-        self.fb_matrix = melmat
-        self.fftfreq = freqs
-        self.edge_freq = edge_freq
-        self.melfreq = None
+        self.edge_freq = np.array(frequencies)
+        self.upper_edges = upper_edges
+        self.center_frequencies = center_frequencies
+        self.lower_edges = lower_edges
 
     def add_DC_HF_filters(self,
                           DC = True,
@@ -352,62 +379,18 @@ class filterbank:
         self.fb_matrix = add_DC_HF_filters(fb_matrix=self.fb_matrix,
                                            DC=DC,
                                            HF=HF)
+        if DC and self.center_frequencies[0] != self.lower_edges[0]:
+            self.center_frequencies = np.insert(self.center_frequencies,0,self.lower_edges[0])
+        if HF and self.ceneter_frequencies[-1] != self.upper_edges[-1]:
+            self.center_frequencies = np.append(self.center_frequencies,self.upper_edges[-1])
         self.DC = DC
         self.HF = HF
     
-    def get_melbank_edge_freq(self):
-        """Update frequency endpoints of the object melfilterbank. 
-
-        A frequency endpoint is the frequency of each edge (lower, center, and upper) of a band in the filters.
-        Or in other words this is a comprehensive frequency list of the center frequencies 
-        and band edges, as they are called in the pyfilterbank module for mel filterbank 
-        ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html#melbank.melfrequencies_mel_filterbank))."""
-        
-        edge_freq =[]
-        # TODO (JK): Potentially need to come back and refine later
-        if self.DC:
-            # if first band is DC band, then skip first row of matrix
-            # (bc first edge is accounted for in getting all lower edges)
-            matrix = self.fb_matrix[1:,:]
-        else:
-            matrix = self.fb_matrix
-
-        # get all "lower edges"
-        for band in matrix:
-            idx = band.nonzero()[0][0] 
-            edge_freq.append(self.fftfreq[idx])
-
-        # Dealing with edges of last band of filterbank
-        last_band = self.fb_matrix[-1,:]
-        if self.HF:
-            # If the last band is HF band, 
-            # then need to find index of first value = 1 in last band in matrix
-            # (lower edge of HF filter is already accounted for in "get all 'lower edges'")
-            last_idx = np.where(last_band==1)[0][0]
-            edge_freq.append(self.fftfreq[last_idx])
-        
-        else: # Last band is not HF band
-            # Include center frequency of last band 
-            last_center_idx = np.argmax(last_band)
-            edge_freq.append(self.fftfreq[last_center_idx])
-
-            # The index of upper edge of last band is last non-zero value of last band in bank
-            last_idx = last_band.nonzero()[0][-1]
-            if last_idx+1 == len(self.fftfreq):
-                edge_freq.append(self.fftfreq[-1])
-            else:
-                edge_freq.append(self.fftfreq[last_idx+1])
-
-        self.edge_freq = np.array(edge_freq).round(2)          
-    
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
-        if self.edge_freq is None:
-            self.get_melbank_edge_freq()
         visualize_filterbank(fb_matrix=self.fb_matrix,
                              fftfreq=self.fftfreq,
-                             xlim=(self.edge_freq[0],self.edge_freq[-1]),
-                             melfreq=self.melfreq)
+                             xlim=(self.edge_freq[0],self.edge_freq[-1]))
 
     def save_filterbank(self):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
@@ -426,7 +409,7 @@ class filterbank:
        
         fb_prefix = f'fb'
         for edge in self.edge_freq:
-            fb_prefix +=f'_{edge}'
+            fb_prefix +=f'_{edge:.3e}'
         if self.DC:
             fb_prefix += '_DC'
         if self.HF:
@@ -444,14 +427,17 @@ if __name__ == '__main__':
 
     #=====================================
     # fb = filterbank()
-    # fb.build_melbank_fb()
+    # fb.build_triangle_fb()
     # fb.add_DC_HF_filters()
     # fb.visualize_filterbank()
     #=====================================
 
     #=====================================
     fb = filterbank()
-    fb.build_melbank_fb(num_mel_bands=7,sample_rate=1/60,freq_max=0.001)
+    fb.build_triangle_fb(num_bands=10,
+                        sample_rate=1/60,
+                        freq_range=(0.0,0.001),
+                        num_fft_bands=int(1E6))
     # fb.add_DC_HF_filters()
     fb.visualize_filterbank()
     #=====================================
@@ -466,8 +452,8 @@ if __name__ == '__main__':
                                      fftfreq=fb.fftfreq,
                                      data_col='BY_GSE',
                                      cadence=dt.timedelta(minutes=1),
-                                     wordsize_factor = 20,
+                                     wordsize_factor = 3,
                                      xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
-                                     freq_endpt_xticks = fb.edge_freq,
+                                     edge_freq = fb.edge_freq,
                                      DC=fb.DC,
                                      HF=fb.HF)
