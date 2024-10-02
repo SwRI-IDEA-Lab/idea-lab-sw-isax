@@ -277,7 +277,7 @@ def visualize_filterbank_application(data_df,
         
         total = total + filtered_sig
 
-        # TODO: make wordsize calculation less arbitrary
+        # TODO: Utilize center_frequencies, instead of edge_freq and if/else DC statement?
         freq_idx = i if DC else i+1
         word_size = int(wordsize_factor*data_span.total_seconds()*edge_freq[freq_idx])
         if word_size > len(x):
@@ -332,7 +332,6 @@ class filterbank:
                  restore_from_file:str = None):
         self.fb_matrix = None
         self.fftfreq = None
-        self.melfreq = None
         self.edge_freq = None
         self.DC = False
         self.HF = False
@@ -342,7 +341,6 @@ class filterbank:
             fb_dict = pickle.load(pkl)
             self.fb_matrix = fb_dict['fb_matrix']
             self.fftfreq = fb_dict['fftfreq']
-            self.melfreq = fb_dict['melfreq']
             self.edge_freq = fb_dict['edge_freq']
             self.DC = fb_dict['DC']
             self.HF = fb_dict['HF']
@@ -400,8 +398,10 @@ class filterbank:
             
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
-                                'melfreq': self.melfreq,
-                                'edge_freq': self.edge_freq.round(1),
+                                'edge_freq': self.edge_freq,
+                                'center_frequencies': self.center_frequencies,
+                                'lower_edges': self.lower_edges,
+                                'upper_edges': self.upper_edges,
                                 'DC': self.DC,
                                 'HF': self.HF
                                 }
@@ -434,7 +434,7 @@ if __name__ == '__main__':
 
     #=====================================
     fb = filterbank()
-    fb.build_triangle_fb(num_bands=10,
+    fb.build_triangle_fb(num_bands=7,
                         sample_rate=1/60,
                         freq_range=(0.0,0.001),
                         num_fft_bands=int(1E6))
@@ -443,7 +443,7 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    # fb = filterbank(restore_from_file='/home/jkobayashi/gh_repos/idea-lab-sw-isax/data/filterbanks/fb_0.01_111.57_240.91_390.87_564.74_766.3_1000.0_DC_HF.pkl')
+    # fb = filterbank(restore_from_file='/home/jkobayashi/gh_repos/idea-lab-sw-isax/data/filterbanks/fb_0.000e+00_1.250e-04_2.500e-04_3.750e-04_5.000e-04_6.250e-04_7.500e-04_8.750e-04_1.000e-03.pkl')
     # fb.visualize_filterbank()
     #=====================================
 
