@@ -46,9 +46,9 @@ import fdl21.data.build_filterbanks as fb
 # %%
 def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.timedelta(minutes=1)):
     # TODO: Concern = does centered windows change the response?
-    window_size = int(window.total_seconds()/cadence.total_seconds())
-    numerator = np.sin(np.pi*f*window_size)
-    denominator = window_size*np.sin(np.pi*f)
+    
+    numerator = np.sin(np.pi*f*window.total_seconds())
+    denominator = window.total_seconds()*np.sin(np.pi*f)
     return abs(numerator/denominator)
 
 # %% Get data
