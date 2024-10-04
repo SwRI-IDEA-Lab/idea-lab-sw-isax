@@ -164,6 +164,7 @@ def build_triangle_filterbank(num_bands=12,
         Center frequencies of the mel bands, center frequencies of fft spectrum.
 
     """
+    # TODO: Change code so that it takes list of center frequencies AND range
     if len(frequencies) == 0:
         freq_min, freq_max = freq_range
         delta_freq = abs(freq_max - freq_min) / (num_bands + 1.0)
@@ -308,14 +309,14 @@ def visualize_filterbank_application(data_df,
             ax0.set_title('Filter bank decomposition')
         
 
-    ax0 = fig.add_subplot(gs[9:11,0])   
+    ax0 = fig.add_subplot(gs[7:9,0])   
     ax0.plot(x, total_paa, c='r')
     ax0.set_title('Series recovered from filter bank PAA')
     ax0.set_xticks([])
     ax0.set_yticks([])
 
 
-    ax0 = fig.add_subplot(gs[5:7,0])   
+    ax0 = fig.add_subplot(gs[4:6,0])   
     ax0.plot(x, y-np.mean(y))
     ax0.set_title('Original series')
     # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
@@ -445,23 +446,23 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    fb = filterbank()
-    fb.build_triangle_fb(num_bands=7,
-                        sample_rate=1/60,
-                        freq_range=(0.0,0.001),
-                        num_fft_bands=int(1E6))
-    fb.add_DC_HF_filters()
-    fb.visualize_filterbank()
-    #=====================================
-
-    #=====================================
     # fb = filterbank()
-    # fb.build_triangle_fb(num_bands=4,
+    # fb.build_triangle_fb(num_bands=7,
     #                     sample_rate=1/60,
-    #                     frequencies=[0.0,0.00025,0.00037,0.00065,0.000828,0.001],
+    #                     freq_range=(0.0,0.001),
     #                     num_fft_bands=int(1E6))
     # # fb.add_DC_HF_filters()
     # fb.visualize_filterbank()
+    #=====================================
+
+    #=====================================
+    fb = filterbank()
+    fb.build_triangle_fb(num_bands=4,
+                        sample_rate=1/60,
+                        frequencies=[0.0,0.00025,0.00037,0.00065,0.000828,0.001],
+                        num_fft_bands=int(1E6))
+    fb.add_DC_HF_filters()
+    fb.visualize_filterbank()
     #=====================================
 
     #=====================================
