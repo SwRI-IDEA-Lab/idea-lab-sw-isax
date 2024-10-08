@@ -44,6 +44,9 @@ import fdl21.data.prototyping_metrics as pm
 import fdl21.utils.time_chunking as tc
 import fdl21.data.build_filterbanks as fb
 
+# %% [markdown]
+# # Prepare test data
+
 # %%
 # %% Get data
 year = '2019'
@@ -56,15 +59,7 @@ mag_df=mag_df[cols]
 mag_df
 
 # %%
-# %% Ch. 15 Formula
-def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.timedelta(minutes=1)):
-    n = int(window.total_seconds()/cadence.total_seconds())
-    numerator = np.sin(np.pi*f*window.total_seconds())
-    denominator = window.total_seconds()*np.sin(np.pi*f)
-    return abs(numerator/denominator)
-
-# %%
-# %% FT
+# %% Prepare FT of test data for Fourier applications
 cadence = dt.timedelta(seconds=60)
 
 mag_df.sort_index(inplace=True)
@@ -73,35 +68,14 @@ df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence
 
 sig_fft_df = fft.fftn(mag_df - mag_df.mean(),axes=0)
 
-# Smoothing filter
-FB = fb.filterbank()
-FB.build_triangle_fb(num_fft_bands=int(mag_df.shape[0])+1,sample_rate=1/60) # triangle filters are not necessary; I just wanted to make an fftfreq spectrum
+# %% [markdown]
+# # Smoothing via Convolution in the Time Domain
 
+# %%
 window = dt.timedelta(seconds=18000)
-smoothing_fr = moving_avg_freq_response(f=FB.fftfreq[1:],
-                                        window=window,
-                                        cadence=cadence)
 
 # %%
-plt.plot(FB.fftfreq[1:],smoothing_fr)
-plt.title("Ch. 15 Formula Frequency Response (vs. Hz Frequency)")
-plt.xlabel("Frequency (Hz)")
-
-# %%
-# %% plot frequency response
-plt.plot(FB.fftfreq[1:],smoothing_fr)
-plt.xlim(0,0.001)
-plt.title("Ch. 15 Formula Frequency Response (vs. Hz Frequency)")
-plt.xlabel("Frequency (Hz)")
-plt.show()
-
-# %%
-# %% Apply moving average "filter"
-Y = sig_fft_df.ravel()*smoothing_fr
-filtered_y = np.real(fft.ifft(Y))
-
-# %%
-# %% smoothing in time chunking
+# %% Smoothing from time_chunking code script
 smooth_y = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
                                         cols=cols,
                                         detrend_window=dt.timedelta(seconds=0),
@@ -110,16 +84,72 @@ smooth_y = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
 # %%
 # %% Compare
 plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
-plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='time_chunking smoothing')
-plt.plot(mag_df.index,filtered_y,color='tab:orange',label='smoothing via Fourier')
+plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='Convolution (time_chunking smoothing)')
 plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
 plt.legend()
 plt.show()
 
 # %% [markdown]
-# # Manual build - Moving Avg. filter
+# # Theoretical Frequency Response
+# 
+# **(Formula from [Ch. 15 of *Digital Signal Processing Textbook*](https://www.dspguide.com/CH15.PDF)**)
+# 
+# Frequency response of an $M$ point moving average filter. The frequency, $f$, runs between $0$ and $0.5$. For $f = 0$, use $H[f] = 1$
+# 
+# $$H[f] = \frac{\sin(\pi f M)}{M\sin(\pi f)}$$
 
 # %%
+# %% Ch. 15 Formula
+def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.timedelta(minutes=1)):
+    n = int(window.total_seconds()/cadence.total_seconds())
+    numerator = np.sin(np.pi*f*window.total_seconds())
+    denominator = window.total_seconds()*np.sin(np.pi*f)
+    return abs(numerator/denominator)
+
+# %%
+# Build theoretical frequency response 
+FB = fb.filterbank()
+FB.build_triangle_fb(num_fft_bands=int(mag_df.shape[0])+1,sample_rate=1/60) # triangle filters are not necessary; I just wanted to make an fftfreq spectrum
+
+FR_theory = moving_avg_freq_response(f=FB.fftfreq[1:],
+                                        window=window,
+                                        cadence=cadence)
+
+# %%
+# plot frequency response
+fig, axes = plt.subplots(nrows=1,ncols=2,figsize=(15,5))
+fig.suptitle("Theoretical Frequency Response (Ch. 15 formula)",fontsize=18)
+axes[0].plot(FB.fftfreq[1:],FR_theory)
+axes[0].set_xlabel("Frequency (Hz)")
+axes[0].set_title('Full Spectrum')
+axes[1].plot(FB.fftfreq[1:],FR_theory)
+axes[1].set_xlim(0,0.001)
+axes[1].set_xlabel("Frequency (Hz)")
+axes[1].set_title('Zoomed in')
+
+# %%
+# Apply filter: theoretical frequency response
+Y = sig_fft_df.ravel()*FR_theory
+filtered_y = np.real(fft.ifft(Y))
+
+# %%
+# Compare
+plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
+plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='Convolution (time_chunking smoothing)')
+plt.plot(mag_df.index,filtered_y,color='tab:orange',label='Fourier: Theory (Ch. 15 formula)')
+plt.vlines(min(mag_df.index)+window,-100,100,linestyles='dashed',color='black')
+plt.vlines(max(mag_df.index)-window,-100,100,linestyles='dashed',color='black')
+plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
+plt.legend()
+plt.show()
+
+# %% [markdown]
+# # Empirical application of moving avg. filter
+# Manually build the rectangular moving average filter and take the FFT.
+# 
+
+# %%
+# useful numbers
 data_len = mag_df.shape[0]                              # length of data (i.e. number of samples)
 sample_numbers = np.linspace(0,data_len,data_len)       # array of sample numbers
 n = int(window.total_seconds()/cadence.total_seconds()) # number of "sample points" in the window (w.r.t. cadence)
@@ -127,9 +157,10 @@ n = int(window.total_seconds()/cadence.total_seconds()) # number of "sample poin
 # %%
 # Make the box
 box_filter = np.zeros(data_len) # start with array of zeros of size data_len
-# print(box_filter.shape)
+print("length of filter matches data length:",len(box_filter)==data_len)
 
 dx = (data_len-n)//2            # the number of zeros to center the box
+
 box_filter[dx:dx+n] = 1         # set values to one
 print(f'sum of ones (should equal {n}): {sum(box_filter)}')
 
@@ -141,51 +172,70 @@ plt.plot(sample_numbers,box_filter)
 
 # %%
 # FFT of the box filter
-freq_resp = fft.fft(box_filter)
+FR_empirical = fft.fft(box_filter)
+#print(FR_empirical.shape)
 
 # %%
-freq_resp.shape
+fig, axes = plt.subplots(nrows=1,ncols=2,figsize=(15,5))
+axes[0].plot(np.abs(FR_empirical))
+axes[0].set_title('Full Spectrum')
+axes[1].plot(np.abs(FR_empirical))
+axes[1].set_xlim(0,100)
+axes[1].set_title('Zoomed in')
+fig.suptitle('Empirical Frequency Response (FFT of box filter)',fontsize=18)
 
 # %%
-plt.plot(np.abs(freq_resp))
-plt.title('FFT of Box Filter')
-
-# %%
-plt.plot(np.abs(freq_resp))
-plt.title('FFT of Box Filter')
-plt.xlim(0,100)
-
-# %%
-plt.plot(sample_numbers/(1e5),np.abs(freq_resp))
-plt.xlim(0,0.001)
-plt.xlabel('sample number/(1e5)')
-
-# %%
-plt.plot(FB.fftfreq[1:],np.abs(freq_resp))
-plt.xlim(0,0.001)
-plt.xlabel('Frequency (Hz)')
-
-# %%
-plt.plot(FB.fftfreq[1:]*2,np.abs(freq_resp))
-plt.xlim(0,0.001)
-plt.xlabel('(Frequency (Hz)*2)')
-
-# %%
-# %% Apply moving average filter
-Y_box = sig_fft_df.ravel()*abs(freq_resp)
+# %% Apply empirical filter
+Y_box = sig_fft_df.ravel()*abs(FR_empirical)
 box_filtered_y = np.real(fft.ifft(Y_box))
 
 # %%
-# %% Compare
 plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
-plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='time_chunking smoothing')
-plt.plot(mag_df.index,filtered_y,color='tab:orange',label='Fourier: Ch.15 formula')
-plt.plot(mag_df.index,box_filtered_y,color='tab:red',label='Fourier: manually-built box filter')
+plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='Convolution (time_chunking smoothing)')
+plt.plot(mag_df.index,filtered_y,color='tab:orange',label='Fourier: Theory (Ch. 15 formula)')
+plt.plot(mag_df.index,box_filtered_y,color='tab:red',label='Fourier: Empirical (FFT of built filter)')
+plt.vlines(min(mag_df.index)+window,-100,100,linestyles='dashed',color='black')
+plt.vlines(max(mag_df.index)-window,-100,100,linestyles='dashed',color='black')
 plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
 plt.legend()
 plt.show()
 
-# %%
+# %% [markdown]
+# -------
 
+# %% [markdown]
+# # Symmetric vs. not-symmetric
+# The empirical frequency response has a kinda U-shape, while the formula from theory (essentially) dimishes forever. Let's see if including higher frequencies makes a difference.
+
+# %%
+FR_empirical_no_HF = FR_empirical.copy()
+FR_empirical_no_HF[1200:] = 0
+
+# %%
+Y_box2 = sig_fft_df.ravel()*abs(FR_empirical_no_HF)
+box_filtered_y2 = np.real(fft.ifft(Y_box2))
+
+# %%
+plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
+plt.plot(mag_df.index,smooth_y,color='tab:green',linewidth=3,label='time_chunking smoothing')
+plt.plot(mag_df.index,filtered_y,color='tab:orange',linewidth=2,label='Fourier: Ch.15 formula')
+plt.plot(mag_df.index,box_filtered_y,color='tab:red',label='Fourier: Empirical (FFT of built filter)')
+plt.plot(mag_df.index,box_filtered_y2,color='cyan',linestyle='dashed',label='Fourier: Empirical (FFT of built filter) \n[no HF]')
+plt.vlines(min(mag_df.index)+window,-100,100,linestyles='dashed',color='black')
+plt.vlines(max(mag_df.index)-window,-100,100,linestyles='dashed',color='black')
+plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
+plt.legend()
+plt.show()
+
+# %% [markdown]
+# # Compare Theoretical vs. Empirical Frequency Response
+
+# %%
+plt.plot(FR_theory)
+plt.plot(abs(FR_empirical))
+# %%
+plt.plot(FR_theory)
+plt.plot(abs(FR_empirical))
+plt.xlim(0,100)
 
 
