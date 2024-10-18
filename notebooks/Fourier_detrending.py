@@ -1,5 +1,6 @@
 # %%
 # %% libraries
+
 import cdflib
 
 from tqdm import tqdm
@@ -49,6 +50,7 @@ import fdl21.data.build_filterbanks as fb
 
 # %%
 # %% Get data
+
 year = '2019'
 month = '05'
 test_cdf_file_path =_SRC_DIR+fb._OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
@@ -60,6 +62,7 @@ mag_df
 
 # %%
 # %% Prepare FT of test data for Fourier applications
+
 cadence = dt.timedelta(seconds=60)
 
 mag_df.sort_index(inplace=True)
@@ -69,8 +72,8 @@ df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence
 sig_fft_df = fft.rfftn(mag_df - mag_df.mean(),axes=0)
 
 # %% [markdown]
-# # Smoothing via Convolution in the Time Domain
-# The Smoothing (and Detrending) code from "time_chunking.py" (not excutable here)
+# # Detrending via Convolution in the Time Domain
+# The Smoothing and Detrending code from "time_chunking.py" (not excutable here)
 # 
 # ```python
 # mag_df=mag_df[cols]
@@ -96,7 +99,8 @@ sig_fft_df = fft.rfftn(mag_df - mag_df.mean(),axes=0)
 window = dt.timedelta(seconds=21000)
 
 # %%
-# %% Smoothing from time_chunking code script
+# %% Detrending from time_chunking code script
+
 detrend_y = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
                                         cols=cols,
                                         detrend_window=window,
@@ -104,9 +108,10 @@ detrend_y = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
 
 # %%
 # %% Compare
+
 plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
-plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=3,label='Convolution (time_chunking smoothing)')
-plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
+plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=3,label='Convolution (time_chunking detrending)')
+plt.title(f'Detrending window = {int(window.total_seconds())} seconds')
 plt.legend()
 plt.show()
 
@@ -126,6 +131,15 @@ def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.time
     numerator = np.sin(np.pi*f*n)
     denominator = n*np.sin(np.pi*f)
     return abs(numerator/denominator)
+
+# %% [markdown]
+# ## Detrending in the frequency domain
+# 
+# Since detrending in the time domain is `detrended_sig = signal - mvg_avg(window)`, the *frequency response* of detrending ($DT$) should be
+# 
+# \begin{equation}
+# DT[f] = 1 - H[f] = 1 - \frac{\sin(\pi f M)}{M \sin(\pi f)}
+# \end{equation}
 
 # %%
 # Build theoretical frequency response 
@@ -156,11 +170,11 @@ filtered_y = np.real(fft.irfft(Y))
 # %%
 # Compare
 plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
-plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=3,label='Convolution (time_chunking smoothing)')
+plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=3,label='Convolution (time_chunking detrending)')
 plt.plot(mag_df.index[1:],filtered_y,color='tab:orange',label='Fourier: Theory (Ch. 15 formula)')
 plt.vlines(min(mag_df.index)+window,-100,100,linestyles='dashed',color='black')
 plt.vlines(max(mag_df.index)-window,-100,100,linestyles='dashed',color='black')
-plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
+plt.title(f'Detrending window = {int(window.total_seconds())} seconds')
 plt.legend()
 plt.show()
 
@@ -207,22 +221,19 @@ axes[1].set_title('Zoomed in')
 fig.suptitle('Empirical Frequency Response (FFT of box filter)',fontsize=18)
 
 # %%
-# %% Apply empirical filter
+# Apply empirical filter
 Y_box = sig_fft_df.ravel()*abs(FR_empirical)
 box_filtered_y = np.real(fft.irfft(Y_box))
 
 # %%
 plt.plot(mag_df.index,mag_df[:]-mag_df.mean(),label='original data')
-plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=5,label='Convolution (time_chunking smoothing)')
+plt.plot(mag_df.index,detrend_y,color='tab:green',linewidth=5,label='Convolution (time_chunking detrending)')
 plt.plot(mag_df.index[1:],filtered_y,color='tab:orange',linewidth=3,label='Fourier: Theory (Ch. 15 formula)')
-plt.plot(mag_df.index[1:],box_filtered_y,color='black',linestyle='dashdot',label='Fourier: Empirical (FFT of built filter)')
+plt.plot(mag_df.index[1:],box_filtered_y,color='black',linestyle='dotted',label='Fourier: Empirical (FFT of built filter)')
 plt.vlines(min(mag_df.index)+window,-100,100,linestyles='dashed',color='gray')
 plt.vlines(max(mag_df.index)-window,-100,100,linestyles='dashed',color='gray')
-plt.title(f'Smoothing window = {int(window.total_seconds())} seconds')
+plt.title(f'Detrending window = {int(window.total_seconds())} seconds')
 plt.legend()
 plt.show()
-
-# %%
-
 
 
