@@ -125,72 +125,7 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
-def build_triangle_filterbank(num_bands=12,
-                            frequencies = [],
-                            freq_range = (0,5),
-                            num_fft_bands=513, 
-                            sample_rate=16000):
-    """Returns tranformation matrix for mel spectrum.
 
-    Parameters
-    ----------
-    num_mel_bands : int
-        Number of mel bands. Number of rows in melmat.
-        Default: 24
-    freq_min : scalar
-        Minimum frequency for the first band.
-        Default: 64
-    freq_max : scalar
-        Maximum frequency for the last band.
-        Default: 8000
-    num_fft_bands : int
-        Number of fft-frequency bands. This ist NFFT/2+1 !
-        number of columns in melmat.
-        Default: 513   (this means NFFT=1024)
-    sample_rate : scalar
-        Sample rate for the signals that will be used.
-        Default: 44100
-
-    Returns
-    -------
-    melmat : ndarray
-        Transformation matrix for the mel spectrum.
-        Use this with fft spectra of num_fft_bands_bands length
-        and multiply the spectrum with the melmat
-        this will tranform your fft-spectrum
-        to a mel-spectrum.
-
-    frequencies : tuple (ndarray <num_mel_bands>, ndarray <num_fft_bands>)
-        Center frequencies of the mel bands, center frequencies of fft spectrum.
-
-    """
-    # TODO: Change code so that it takes list of center frequencies AND range
-    if len(frequencies) == 0:
-        freq_min, freq_max = freq_range
-        delta_freq = abs(freq_max - freq_min) / (num_bands + 1.0)
-        frequencies = freq_min + delta_freq*arange(0, num_bands+2)
-    assert len(frequencies) == num_bands + 2, "frequencies must have length num_bands + 2"
-    lower_edges = frequencies[:-2]
-    upper_edges = frequencies[2:]
-    center_frequencies = frequencies[1:-1]
-
-    freqs = linspace(0.0, sample_rate/2.0, num_fft_bands)
-    melmat = zeros((num_bands, num_fft_bands))
-
-    for iband, (center, lower, upper) in enumerate(zip(
-            center_frequencies, lower_edges, upper_edges)):
-
-        left_slope = (freqs >= lower)  == (freqs <= center)
-        melmat[iband, left_slope] = (
-            (freqs[left_slope] - lower) / (center - lower)
-        )
-
-        right_slope = (freqs >= center) == (freqs <= upper)
-        melmat[iband, right_slope] = (
-            (upper - freqs[right_slope]) / (upper - center)
-        )
-
-    return melmat, freqs, (frequencies,lower_edges,center_frequencies, upper_edges)
 
 
 def add_DC_HF_filters(fb_matrix,
@@ -338,46 +273,83 @@ def visualize_filterbank_application(data_df,
 
 class filterbank:
     def __init__(self,
+                 data_len:int,
+                 cadence = dt.timedelta(seconds=60),
                  restore_from_file:str = None):
+        self.data_len = data_len
+        self.cadence = cadence
+        self.freq_spectrum = np.linspace(0.0001,data_len/2,(data_len//2)+1)
+        self.freq_hz_spec = self.freq_spectrum/(data_len*cadence.total_seconds)
+        
+        # placeholders
         self.fb_matrix = None
-        self.fftfreq = None
         self.edge_freq = None
         self.DC = False
         self.HF = False
 
-        if restore_from_file is not None:
-            pkl = open(restore_from_file,'rb')
-            fb_dict = pickle.load(pkl)
-            self.fb_matrix = fb_dict['fb_matrix']
-            self.fftfreq = fb_dict['fftfreq']
-            self.edge_freq = fb_dict['edge_freq']
-            self.DC = fb_dict['DC']
-            self.HF = fb_dict['HF']
+        # if restore_from_file is not None:
+        #     pkl = open(restore_from_file,'rb')
+        #     fb_dict = pickle.load(pkl)
+        #     self.fb_matrix = fb_dict['fb_matrix']
+        #     self.fftfreq = fb_dict['fftfreq']
+        #     self.edge_freq = fb_dict['edge_freq']
+        #     self.DC = fb_dict['DC']
+        #     self.HF = fb_dict['HF']
 
-    def build_triangle_fb(self,
-                         num_bands = 2,
-                         frequencies = [],
-                         freq_range = (0,5),
-                         num_fft_bands=513, 
-                         sample_rate=16000):
-        """Build a filterbank, entirely using pyfilterbank's melbank 
-        ([documentation](https://siggigue.github.io/pyfilterbank/melbank.html))
-        
-        **Note:** Traditional melbank filters are spread across the frequency spectrum  
-        (on the *Mel* scale) in a way that is spaced lienarly at low frequencies 
-        and logarithmically at higher frequencies. 
+    def build_triangle_filterbank(self, 
+                                  filter_freq_range = (0,5),
+                                  num_bands = 2,
+                                  center_freq = None):
+        """Creates filterbank matrix of triangle filters.
+
+        Parameters
+        ----------
+        filter_freq_range : tuple
+            (min_freq,max_freq)
+            Minimum and maximum frequencies (in hz) that define the range in which the filters occupy.
+            min_freq will be the first edge, and max_freq will be the last edge
+            
+        num_bands : int
+            Number of filters in filter bank. 
+            Used to evenly space out center frequencies across filter_freq_range.
+            Not used if center_freq is not None
+        center_freq : array
+            Specified center frequencies of triangle filterbanks.
+            If none or empty array, center_freq of the filterbank will be evenly spaced out using num_bands. 
         """
-        melmat, fftfreq, (frequencies,lower_edges,center_frequencies,upper_edges) = build_triangle_filterbank(num_bands=num_bands,
-                                                                                                    frequencies=frequencies,
-                                                                                                    freq_range=freq_range,
-                                                                                                    num_fft_bands=num_fft_bands, 
-                                                                                                    sample_rate=sample_rate)
+        freq_min, freq_max = filter_freq_range
+
+        # if center frequencies not specified, centers are evenly spaced out given the 
+        if len(center_freq) == 0 or center_freq is None:
+            delta_freq = abs(freq_max - freq_min) / (num_bands + 1.0)
+            edge_freq = freq_min + delta_freq*arange(0, num_bands+2)
+            center_freq = edge_freq[1:-1]
+        else:
+            edge_freq = [freq_min] + center_freq + [freq_max]
         
+        lower_edges = edge_freq[:-2]
+        upper_edges = edge_freq[2:]
+        
+
+        freqs = self.freq_hz_spec
+        melmat = zeros((num_bands, len(freqs)))
+
+        for iband, (center, lower, upper) in enumerate(zip(
+                center_freq, lower_edges, upper_edges)):
+
+            left_slope = (freqs >= lower)  == (freqs <= center)
+            melmat[iband, left_slope] = (
+                (freqs[left_slope] - lower) / (center - lower)
+            )
+
+            right_slope = (freqs >= center) == (freqs <= upper)
+            melmat[iband, right_slope] = (
+                (upper - freqs[right_slope]) / (upper - center)
+            )
         self.fb_matrix = melmat 
-        self.fftfreq = fftfreq
-        self.edge_freq = np.array(frequencies)
+        self.edge_freq = np.array(edge_freq)
         self.upper_edges = upper_edges
-        self.center_frequencies = center_frequencies
+        self.center_freq = center_freq
         self.lower_edges = lower_edges
 
     def add_DC_HF_filters(self,
@@ -437,7 +409,8 @@ if __name__ == '__main__':
     test_cdf_file_path =_SRC_DIR+_OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
 
     mag_df = get_test_data(fname_full_path=test_cdf_file_path)
-
+    
+    # TODO: Set up json excutable way to test (using args, etc.)
     #=====================================
     # fb = filterbank()
     # fb.build_triangle_fb()
@@ -446,23 +419,23 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    # fb = filterbank()
-    # fb.build_triangle_fb(num_bands=7,
-    #                     sample_rate=1/60,
-    #                     freq_range=(0.0,0.001),
-    #                     num_fft_bands=int(1E6))
-    # # fb.add_DC_HF_filters()
-    # fb.visualize_filterbank()
+    fb = filterbank()
+    fb.build_triangle_fb(num_bands=7,
+                        sample_rate=1/60,
+                        freq_range=(0.0,0.001),
+                        num_fft_bands=int(1E6))
+    # fb.add_DC_HF_filters()
+    fb.visualize_filterbank()
     #=====================================
 
     #=====================================
-    fb = filterbank()
-    fb.build_triangle_fb(num_bands=4,
-                        sample_rate=1/60,
-                        frequencies=[0.0,0.00025,0.00037,0.00065,0.000828,0.001],
-                        num_fft_bands=int(1E6))
-    fb.add_DC_HF_filters()
-    fb.visualize_filterbank()
+    # fb = filterbank()
+    # fb.build_triangle_fb(num_bands=4,
+    #                     sample_rate=1/60,
+    #                     frequencies=[0.0,0.00025,0.00037,0.00065,0.000828,0.001],
+    #                     num_fft_bands=int(1E6))
+    # # fb.add_DC_HF_filters()
+    # fb.visualize_filterbank()
     #=====================================
 
     #=====================================
