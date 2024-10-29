@@ -125,9 +125,6 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
-
-
-
 def add_DC_HF_filters(fb_matrix,
                       DC = True,
                       HF = True):
@@ -279,7 +276,7 @@ class filterbank:
         self.data_len = data_len
         self.cadence = cadence
         self.freq_spectrum = np.linspace(0.0001,data_len/2,(data_len//2)+1)
-        self.freq_hz_spec = self.freq_spectrum/(data_len*cadence.total_seconds)
+        self.freq_hz_spec = self.freq_spectrum/(data_len*cadence.total_seconds())
         
         # placeholders
         self.fb_matrix = None
@@ -296,7 +293,7 @@ class filterbank:
         #     self.DC = fb_dict['DC']
         #     self.HF = fb_dict['HF']
 
-    def build_triangle_filterbank(self, 
+    def build_triangle_fb(self, 
                                   filter_freq_range = (0,5),
                                   num_bands = 2,
                                   center_freq = None):
@@ -320,7 +317,7 @@ class filterbank:
         freq_min, freq_max = filter_freq_range
 
         # if center frequencies not specified, centers are evenly spaced out given the 
-        if len(center_freq) == 0 or center_freq is None:
+        if center_freq is None or len(center_freq) == 0:
             delta_freq = abs(freq_max - freq_min) / (num_bands + 1.0)
             edge_freq = freq_min + delta_freq*arange(0, num_bands+2)
             center_freq = edge_freq[1:-1]
@@ -359,13 +356,13 @@ class filterbank:
                                            DC=DC,
                                            HF=HF)
         if DC:
-            if self.center_frequencies[0] != self.edge_freq[0]:
-                self.center_frequencies = np.insert(self.center_frequencies,0,self.edge_freq[0])
+            if self.center_freq[0] != self.edge_freq[0]:
+                self.center_freq = np.insert(self.center_freq,0,self.edge_freq[0])
             if self.upper_edges[0] != self.edge_freq[1]:
                 self.upper_edges = np.insert(self.upper_edges,0,self.edge_freq[1])
         if HF:
-            if self.center_frequencies[-1] != self.edge_freq[-1]:
-                self.center_frequencies = np.append(self.center_frequencies,self.edge_freq[-1])
+            if self.center_freq[-1] != self.edge_freq[-1]:
+                self.center_freq = np.append(self.center_freq,self.edge_freq[-1])
             if self.lower_edges[-1] != self.edge_freq[-2]:
                 self.lower_edges = np.append(self.lower_edges,self.edge_freq[-2])
         self.DC = DC
@@ -374,7 +371,7 @@ class filterbank:
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
         visualize_filterbank(fb_matrix=self.fb_matrix,
-                             fftfreq=self.fftfreq,
+                             fftfreq=self.freq_hz_spec,
                              xlim=(self.edge_freq[0],self.edge_freq[-1]))
 
     def save_filterbank(self):
@@ -384,7 +381,7 @@ class filterbank:
         filterbank_dictionary = {'fb_matrix': self.fb_matrix,
                                 'fftfreq': self.fftfreq,
                                 'edge_freq': self.edge_freq,
-                                'center_frequencies': self.center_frequencies,
+                                'center_freq': self.center_freq,
                                 'lower_edges': self.lower_edges,
                                 'upper_edges': self.upper_edges,
                                 'DC': self.DC,
@@ -419,12 +416,12 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    fb = filterbank()
-    fb.build_triangle_fb(num_bands=7,
-                        sample_rate=1/60,
-                        freq_range=(0.0,0.001),
-                        num_fft_bands=int(1E6))
-    # fb.add_DC_HF_filters()
+    fb = filterbank(data_len=len(mag_df),
+                    cadence=dt.timedelta(seconds=60))
+    fb.build_triangle_fb(num_bands=4,
+                        filter_freq_range=(0.0,0.001),
+                        )
+    fb.add_DC_HF_filters()
     fb.visualize_filterbank()
     #=====================================
 
@@ -445,11 +442,11 @@ if __name__ == '__main__':
 
     visualize_filterbank_application(data_df=mag_df,
                                      melmat=fb.fb_matrix,
-                                     fftfreq=fb.fftfreq,
+                                     fftfreq=fb.freq_hz_spec,
                                      data_col='BY_GSE',
                                      cadence=dt.timedelta(minutes=1),
                                      wordsize_factor = 3,
                                      xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
-                                     center_freq = fb.center_frequencies,
+                                     center_freq = fb.center_freq,
                                      DC=fb.DC,
                                      HF=fb.HF)
