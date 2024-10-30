@@ -125,6 +125,13 @@ def get_test_data(fname_full_path=None,
 
     return mag_df
 
+# %% Ch. 15 Formula
+def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.timedelta(minutes=1)):
+    n = int(window.total_seconds()/cadence.total_seconds())
+    numerator = np.sin(np.pi*f*n)
+    denominator = n*np.sin(np.pi*f)
+    return abs(numerator/denominator)
+
 def add_DC_HF_filters(fb_matrix,
                       DC = True,
                       HF = True):
@@ -161,7 +168,7 @@ def visualize_filterbank(fb_matrix,
     plt.show()
 
 def visualize_filterbank_application(data_df,
-                                     melmat,
+                                     fb_matrix,
                                      fftfreq,
                                      data_col = None,
                                      cadence = dt.timedelta(seconds=300),
@@ -172,8 +179,7 @@ def visualize_filterbank_application(data_df,
                                      xlim = None,
                                      center_freq = None,
                                      DC = False,
-                                     HF = False
-                                     ):
+                                     HF = False):
     """Plot comprehensive visualization of filterbank and its application to a set of test data.
     Plot includes the filterbank, raw test data, decomposition of filterbank preprocessed data and PAA, 
     and series recovered from summing up each filterbank PAA application.
@@ -183,7 +189,7 @@ def visualize_filterbank_application(data_df,
     
     """
     fig = plt.figure(figsize=figsize)
-    gs = fig.add_gridspec(ncols = 3, nrows = melmat.shape[0]*2,
+    gs = fig.add_gridspec(ncols = 3, nrows = fb_matrix.shape[0]*2,
                           figure = fig,
                           wspace=gs_wspace, hspace=gs_hspace)
     
@@ -197,12 +203,12 @@ def visualize_filterbank_application(data_df,
     data_span = x[-1]-x[0]
 
     
-    for i in range(melmat.shape[0]):
+    for i in range(fb_matrix.shape[0]):
         # get filtered signal
         filtered_sig = tc.preprocess_fft_filter(mag_df=data_df,
                                                 cols=data_df.columns,
                                                 cadence=cadence,
-                                                frequency_weights=melmat[i,:],
+                                                frequency_weights=fb_matrix[i,:],
                                                 frequency_spectrum=fftfreq)
         
         filtered_sig = np.array(filtered_sig[data_col])
@@ -210,7 +216,7 @@ def visualize_filterbank_application(data_df,
         total = total + filtered_sig
 
         # wordsize calculation
-        if HF and i == melmat.shape[0]-1:
+        if HF and i == fb_matrix.shape[0]-1:
             word_size = int(0.9*len(x))
         else:
             if DC and i == 0:
@@ -240,15 +246,20 @@ def visualize_filterbank_application(data_df,
         if i==0:
             ax0.set_title('Filter bank decomposition')
         
-
-    ax0 = fig.add_subplot(gs[7:9,0])   
+    if fb_matrix.shape[0]<5:
+        os_gs = gs[3:4,0]
+        pr_gs = gs[5:6,0]
+    else:
+        os_gs = gs[4:6,0]
+        pr_gs = gs[7:9,0]
+    ax0 = fig.add_subplot(pr_gs)   
     ax0.plot(x, total_paa, c='r')
     ax0.set_title('Series recovered from filter bank PAA')
     ax0.set_xticks([])
     ax0.set_yticks([])
 
 
-    ax0 = fig.add_subplot(gs[4:6,0])   
+    ax0 = fig.add_subplot(os_gs)   
     ax0.plot(x, y-np.mean(y))
     ax0.set_title('Original series')
     # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
@@ -258,7 +269,7 @@ def visualize_filterbank_application(data_df,
     if xlim is None:
         xlim = (fftfreq[0],fftfreq[-1])
     ax = fig.add_subplot(gs[0:2,0])  
-    ax.plot(fftfreq, melmat.T)
+    ax.plot(fftfreq, fb_matrix.T)
     ax.grid(True)
     ax.set_ylabel('Weight')
     ax.set_xlabel('Frequency (Hz)')
@@ -349,6 +360,25 @@ class filterbank:
         self.center_freq = center_freq
         self.lower_edges = lower_edges
 
+    def build_DTSM_fb(self,
+                      windows = []):
+        fb_matrix = zeros((len(windows)-1,len(self.freq_spectrum)))
+        center_freq = []
+        for i,_ in enumerate(fb_matrix):
+            DT = 1 - moving_avg_freq_response(f=self.freq_spectrum,
+                                              window=dt.timedelta(seconds=windows[i+1]),
+                                              cadence=self.cadence)
+            SM = moving_avg_freq_response(f=self.freq_spectrum,
+                                          window=dt.timedelta(seconds=windows[i]),
+                                          cadence=self.cadence)
+            FR = SM*DT
+            fb_matrix[i] = FR
+            center_freq.append(self.freq_hz_spec[np.argmax(FR)])
+
+        self.fb_matrix = fb_matrix
+        self.center_freq = center_freq
+        
+
     def add_DC_HF_filters(self,
                           DC = True,
                           HF = True):
@@ -371,8 +401,8 @@ class filterbank:
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
         visualize_filterbank(fb_matrix=self.fb_matrix,
-                             fftfreq=self.freq_hz_spec,
-                             xlim=(self.edge_freq[0],self.edge_freq[-1]))
+                             fftfreq=self.freq_hz_spec,)
+                            #  xlim=(self.edge_freq[0],self.edge_freq[-1]))
 
     def save_filterbank(self):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
@@ -416,13 +446,13 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    fb = filterbank(data_len=len(mag_df),
-                    cadence=dt.timedelta(seconds=60))
-    fb.build_triangle_fb(num_bands=4,
-                        filter_freq_range=(0.0,0.001),
-                        )
-    fb.add_DC_HF_filters()
-    fb.visualize_filterbank()
+    # fb = filterbank(data_len=len(mag_df),
+    #                 cadence=dt.timedelta(seconds=60))
+    # fb.build_triangle_fb(num_bands=4,
+    #                     filter_freq_range=(0.0,0.001),
+    #                     )
+    # fb.add_DC_HF_filters()
+    # fb.visualize_filterbank()
     #=====================================
 
     #=====================================
@@ -440,13 +470,30 @@ if __name__ == '__main__':
     # fb.visualize_filterbank()
     #=====================================
 
+    #=====================================
+    fb = filterbank(data_len=len(mag_df),
+                    cadence=dt.timedelta(seconds=60))
+    fb.build_DTSM_fb(windows=[1000,3000,18000,108000])
+    fb.visualize_filterbank()
     visualize_filterbank_application(data_df=mag_df,
-                                     melmat=fb.fb_matrix,
+                                     fb_matrix=fb.fb_matrix,
                                      fftfreq=fb.freq_hz_spec,
                                      data_col='BY_GSE',
                                      cadence=dt.timedelta(minutes=1),
                                      wordsize_factor = 3,
-                                     xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
+                                     xlim = (0,0.001),
                                      center_freq = fb.center_freq,
                                      DC=fb.DC,
                                      HF=fb.HF)
+    #=====================================
+
+    # visualize_filterbank_application(data_df=mag_df,
+    #                                  fb_matrix=fb.fb_matrix,
+    #                                  fftfreq=fb.freq_hz_spec,
+    #                                  data_col='BY_GSE',
+    #                                  cadence=dt.timedelta(minutes=1),
+    #                                  wordsize_factor = 3,
+    #                                 #  xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
+    #                                  center_freq = fb.center_freq,
+    #                                  DC=fb.DC,
+    #                                  HF=fb.HF)
