@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy import fft
+from sklearn.metrics import r2_score
 
 import datetime as dt
 import os,sys
@@ -43,9 +44,6 @@ cadence = dt.timedelta(seconds=60)
 
 mag_df.sort_index(inplace=True)
 mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=True)
-df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
-
-sig_fft_df = fft.rfftn(mag_df - mag_df.mean(),axes=0)
 
 # %% [markdown]
 # # Theoretical Frequency Response
@@ -55,162 +53,172 @@ sig_fft_df = fft.rfftn(mag_df - mag_df.mean(),axes=0)
 # Frequency response of an $M$ point moving average filter. The frequency, $f$, runs between $0$ and $0.5$. For $f = 0$, use $H[f] = 1$
 # 
 # $$H[f] = \frac{\sin(\pi f M)}{M\sin(\pi f)}$$
+# 
+# **Frequency response of detrending (DT)** with window $W_d$,
+# 
+# \begin{align*}
+# 
+# \widetilde{DT}[f] &= 1 - H_d[f] \\
+# 
+# &= 1 - \frac{\sin (\pi f W_d)}{W_d \sin (\pi f)}
+# 
+# \end{align*}
+# 
+# **Frequency response of smoothing (SM)** with window $W_s$,
+# 
+# \begin{align*}
+# 
+# \widetilde{SM}[f] &= H_s[f] \\
+# 
+# &= \frac{\sin (\pi f W_s)}{W_s \sin (\pi f)}
+# 
+# \end{align*}
+# 
+# **Frequency response of *both* detrending and smoothing** (just product of the above two)
+# 
+# \begin{align*}
+# 
+# \widetilde{DTSM}[f] &=  \widetilde{DT}[f] \cdot \widetilde{SM}[f] \\
+# 
+# &= (1-H_d[f]) \cdot (H_s[f]) \\
+# 
+# &= \left(1 - \frac{\sin (\pi f W_d)}{W_d \sin (\pi f)}\right) \cdot \left(\frac{\sin (\pi f W_s)}{W_s \sin (\pi f)}\right) 
+# 
+# \end{align*}
+
 
 # %%
-# %% Ch. 15 Formula
-def moving_avg_freq_response(f,window=dt.timedelta(minutes=3000),cadence=dt.timedelta(minutes=1)):
-    n = int(window.total_seconds()/cadence.total_seconds())
-    numerator = np.sin(np.pi*f*n)
-    denominator = n*np.sin(np.pi*f)
-    return abs(numerator/denominator)
+# # Moving average filterbanks
+# DTSM = fb.filterbank(data_len=len(mag_df),
+#                     cadence=dt.timedelta(seconds=60))
+# DTSM.build_DTSM_fb(windows=[1000,3000,18000,108000])
+# fb.visualize_filterbank(fb_matrix=DTSM.fb_matrix,
+#                         fftfreq=DTSM.freq_hz_spec,
+#                         xlim=(0,0.002))
+
 
 # %%
-data_len = mag_df.shape[0]  
-sample_rate = 1/cadence.total_seconds()
-freq_spectrum = np.linspace(0.0001,data_len/2,(data_len//2)+1)
-freq_hz = freq_spectrum*sample_rate/(data_len)
-
-# %% [markdown]
-# # Windows1
-
+# # triangle filterbanks
+# tri = fb.filterbank(data_len=len(mag_df),
+#                     cadence=dt.timedelta(seconds=60))
+# tri.build_triangle_fb((0.0,0.00104),
+#                       center_freq=np.sort(DTSM.center_freq))
+# fb.visualize_filterbank(fb_matrix=tri.fb_matrix,
+#                         fftfreq=tri.freq_hz_spec,
+#                         xlim=(0.0,0.0015))
 # %%
-window1_SM = dt.timedelta(seconds=500)
-window1_DT = dt.timedelta(seconds=3000)
+# # plot all
+# for m_bank in DTSM.fb_matrix:
+#     plt.plot(DTSM.freq_hz_spec,m_bank,linewidth=2)
+# for t_bank in tri.fb_matrix:
+#     plt.plot(tri.freq_hz_spec,t_bank,linestyle='dashed')
 
-# %%
-# Build theoretical frequency response 
-FR1_smooth = moving_avg_freq_response(f=freq_spectrum,
-                                        window=window1_SM,
-                                        cadence=cadence)
-
-# %%
-FR1_theory = moving_avg_freq_response(f=freq_spectrum,
-                                        window=window1_DT,
-                                        cadence=cadence)
-FR1_detrend = 1 - FR1_theory
-
-# %%
-# plot frequency response
-fig, axes = plt.subplots(nrows=1,ncols=2,figsize=(15,5))
-fig.suptitle(f"Windows1 (SM:{int(window1_SM.total_seconds())}; DT: {int(window1_DT.total_seconds())})",fontsize=18)
-axes[0].plot(freq_hz,FR1_smooth,linestyle='dotted',label='Smoothing')
-axes[0].plot(freq_hz,FR1_detrend,linestyle='dotted',label='Detrending')
-axes[0].plot(freq_hz,FR1_detrend*FR1_smooth,linestyle='dashed',label='Detrend*Smooth')
-axes[0].set_xlabel("Frequency")
-axes[0].set_title('Full Spectrum')
-axes[1].plot(freq_hz,FR1_smooth,linestyle='dotted',label='Smoothing')
-axes[1].plot(freq_hz,FR1_detrend,linestyle='dotted',label='Detrending')
-axes[1].plot(freq_hz,FR1_detrend*FR1_smooth,label='Detrend*Smooth')
-axes[1].set_xlim(0,0.004)
-axes[1].set_xlabel("Frequency")
-axes[1].set_title('Zoomed in')
-axes[0].legend()
-axes[1].legend()
-plt.show()
-
-# %% [markdown]
-# # Windows2
-
-# %%
-window2_SM = dt.timedelta(seconds=3000)
-window2_DT = dt.timedelta(seconds=18000)
-
-# %%
-# Build theoretical frequency response 
-FR2_smooth = moving_avg_freq_response(f=freq_spectrum,
-                                        window=window2_SM,
-                                        cadence=cadence)
-
-# %%
-FR2_theory = moving_avg_freq_response(f=freq_spectrum,
-                                        window=window2_DT,
-                                        cadence=cadence)
-FR2_detrend = 1 - FR2_theory
-
-# %%
-# plot frequency response
-fig, axes = plt.subplots(nrows=1,ncols=2,figsize=(15,5))
-fig.suptitle(f"Windows2 (SM:{int(window2_SM.total_seconds())}; DT: {int(window2_DT.total_seconds())})",fontsize=18)
-axes[0].plot(freq_hz,FR2_smooth,linestyle='dotted',label='Smoothing')
-axes[0].plot(freq_hz,FR2_detrend,linestyle='dotted',label='Detrending')
-axes[0].plot(freq_hz,FR2_detrend*FR2_smooth,linestyle='dashed',label='Detrend*Smooth')
-axes[0].set_xlabel("Frequency")
-axes[0].set_title('Full Spectrum')
-axes[1].plot(freq_hz,FR2_smooth,linestyle='dotted',label='Smoothing')
-axes[1].plot(freq_hz,FR2_detrend,linestyle='dotted',label='Detrending')
-axes[1].plot(freq_hz,FR2_detrend*FR2_smooth,label='Detrend*Smooth')
-axes[1].set_xlim(0,0.004)
-axes[1].set_xlabel("Frequency")
-axes[1].set_title('Zoomed in')
-axes[0].legend()
-axes[1].legend()
-plt.show()
-
-# %% [markdown]
-# # Comprehensive
-
-# %%
-# fig, axes = plt.subplots(nrows=1,ncols=2,figsize=(15,5))
-# # fig.suptitle(f"Windows1 (SM:{int(window2_SM.total_seconds())}; DT: {int(window2_DT.total_seconds())})",fontsize=18)
-# # axes[0].plot(freq_spectrum,FR1_smooth,linestyle='dotted',label='Smoothing')
-# # axes[0].plot(freq_spectrum,FR1_detrend,linestyle='dotted',label='Detrending')
-# axes[0].plot(freq_hz,FR1_detrend*FR1_smooth,label='window1')
-# axes[0].plot(freq_hz,FR2_detrend*FR2_smooth,label='window2')
-# axes[0].set_xlabel("Frequency")
-# axes[0].set_title('Full Spectrum')
-# # axes[1].plot(freq_spectrum,FR1_smooth,linestyle='dotted',label='Smoothing')
-# # axes[1].plot(freq_spectrum,FR1_detrend,linestyle='dotted',label='Detrending')
-# axes[1].plot(freq_hz,FR1_detrend*FR1_smooth,label=f'SM:{int(window1_SM.total_seconds())}; DT:{int(window1_DT.total_seconds())}')
-# axes[1].plot(freq_hz,FR2_detrend*FR2_smooth,label=f'SM:{int(window2_SM.total_seconds())}; DT:{int(window2_DT.total_seconds())}')
-# axes[1].set_xlim(0,0.004)
-# axes[1].set_xlabel("Frequency")
-# axes[1].set_title('Zoomed in')
-# axes[0].legend()
-# axes[1].legend()
+# plt.xlim(0.0,0.0015)
+# plt.grid()
 # plt.show()
 
+# Add DC and HF filters ====================================================
+# %%# Moving average filterbanks
+DTSM = fb.filterbank(data_len=len(mag_df),
+                    cadence=dt.timedelta(seconds=60))
+DTSM.build_DTSM_fb(windows=[2000,6000,18000,54000])
+DTSM.add_mvgavg_DC_HF()
+fb.visualize_filterbank(fb_matrix=DTSM.fb_matrix,
+                        fftfreq=DTSM.freq_hz_spec,
+                        xlim=(0,0.002))
+
 # %%
-plt.plot(freq_hz,FR1_detrend*FR1_smooth,label=f'SM1:{int(window1_SM.total_seconds())}; DT1:{int(window1_DT.total_seconds())}')
-plt.plot(freq_hz,FR2_detrend*FR2_smooth,label=f'SM2:{int(window2_SM.total_seconds())}; DT2:{int(window2_DT.total_seconds())}')
-plt.xlabel("Frequency (Hz)")
-plt.title('Smoothing & Detrending: Multiple windows')
-plt.legend()
+# triangle filterbanks
+tri = fb.filterbank(data_len=len(mag_df),
+                    cadence=dt.timedelta(seconds=60))
+tri.build_triangle_fb((0.0,np.sort(DTSM.center_freq)[-1]),
+                      center_freq=np.sort(DTSM.center_freq[1:-1]))
+tri.add_DC_HF_filters()
+fb.visualize_filterbank(fb_matrix=tri.fb_matrix,
+                        fftfreq=tri.freq_hz_spec,
+                        xlim=(0.0,0.0015))
+
+# %%
+# plot all
+plt.figure(figsize=(10,5))
+for m_bank in DTSM.fb_matrix:
+    plt.plot(DTSM.freq_hz_spec,m_bank,linewidth=2)
+for t_bank in tri.fb_matrix:
+    plt.plot(tri.freq_hz_spec,t_bank,linestyle='dashed')
+
+plt.xlim(0.0,0.0015)
 plt.grid()
 plt.show()
 
 # %%
-FR1 = FR1_detrend*FR1_smooth
-FR2 = FR2_detrend*FR2_smooth
-cntr_freq1 = freq_hz[np.argmax(FR1)]
-cntr_freq2 = freq_hz[np.argmax(FR2)]
+DTSM_filtered, DTSM_paa = fb.visualize_filterbank_application(data_df=mag_df,
+                                                            fb_matrix=DTSM.fb_matrix,
+                                                            fftfreq=DTSM.freq_hz_spec,
+                                                            data_col='BY_GSE',
+                                                            cadence=dt.timedelta(minutes=1),
+                                                            wordsize_factor = 3,
+                                                            xlim = (0,0.001),
+                                                            center_freq = DTSM.center_freq,
+                                                            DC=DTSM.DC,
+                                                            HF=DTSM.HF,
+                                                            save_results=True)
 
 # %%
-test = fb.filterbank()
-test.build_triangle_fb(num_bands=2,
-                        frequencies=[0.0,cntr_freq2,cntr_freq1,freq_hz[180]],
-                        num_fft_bands=int(1e6),
-                        sample_rate=sample_rate)
-# fb.visualize_filterbank(fb_matrix=test.fb_matrix,
-#                         fftfreq=test.fftfreq,
-#                         xlim=(0,0.01))
-
-plt.plot(test.fftfreq,test.fb_matrix[0],label=f'filterbank[0] (cnt_freq: {cntr_freq2:.1e} hz)')
-plt.plot(test.fftfreq,test.fb_matrix[1],label=f'filterbank[1] (cnt_freq: {cntr_freq1:.1e} hz)')
+tri_filtered, tri_paa = fb.visualize_filterbank_application(data_df=mag_df,
+                                                            fb_matrix=tri.fb_matrix,
+                                                            fftfreq=tri.freq_hz_spec,
+                                                            data_col='BY_GSE',
+                                                            cadence=dt.timedelta(minutes=1),
+                                                            wordsize_factor = 3,
+                                                            xlim = (0,0.001),
+                                                            center_freq = tri.center_freq,
+                                                            DC=tri.DC,
+                                                            HF=tri.HF,
+                                                            save_results=True)
+# %%
+plt.figure(figsize=(10,5))
+sum_DTSM_filtered = np.sum(DTSM_filtered,axis=0)
+sum_tri_filtered = np.sum(tri_filtered,axis=0)
+DTSM_r2 = r2_score(mag_df-mag_df.mean(),sum_DTSM_filtered)
+tri_r2 = r2_score(mag_df-mag_df.mean(),sum_tri_filtered)
+plt.plot(mag_df-mag_df.mean(),label='original')
+plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$:{DTSM_r2:.2e})')
+plt.plot(mag_df.index,sum_tri_filtered,'--',label=f'$\sum$ triangle filterbanks ($R^2$:{tri_r2:.2e})')
 plt.legend()
-plt.title("Build Similar Filterbank")
-plt.xlabel("Frequency (Hz)")
-plt.grid()
 plt.show()
 
 # %%
-plt.plot(freq_hz,FR1_detrend*FR1_smooth,label=f'SM1:{int(window1_SM.total_seconds())}; DT1:{int(window1_DT.total_seconds())}')
-plt.plot(freq_hz,FR2_detrend*FR2_smooth,label=f'SM2:{int(window2_SM.total_seconds())}; DT2:{int(window2_DT.total_seconds())}')
-plt.plot(test.fftfreq,test.fb_matrix[0],linestyle='dashed',label=f'filterbank[0] (cnt_freq: {cntr_freq2:.1e} hz)')
-plt.plot(test.fftfreq,test.fb_matrix[1],linestyle='dashed',label=f'filterbank[1] (cnt_freq: {cntr_freq1:.1e} hz)')
-plt.legend()
-plt.title('Compare SMDT windows with Filterbanks')
-plt.xlabel('Frequency (Hz)')
-plt.xlim(0,0.004)
-plt.grid()
-plt.show()
+convolution_filtered = np.zeros(DTSM_filtered.shape)
+for i,w in enumerate(DTSM.windows[:-1]):
+    filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+                                            cols=cols,
+                                            detrend_window=dt.timedelta(seconds=w),
+                                            smooth_window=dt.timedelta(seconds=DTSM.windows[i+1]))
+    convolution_filtered[i+1] = np.array(filtered[cols]).ravel()
+# DC
+DC_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+                                           cols=cols,
+                                           detrend_window=dt.timedelta(seconds=0),
+                                           smooth_window=dt.timedelta(seconds=DTSM.windows[-1]))
+convolution_filtered[0] = np.array(DC_filtered).ravel()
+# HF
+HF_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+                                           cols=cols,
+                                           detrend_window=dt.timedelta(seconds=DTSM.windows[0]),
+                                           smooth_window=dt.timedelta(seconds=0))
+convolution_filtered[-1] = np.array(HF_filtered).ravel()
+
 # %%
+plt.figure(figsize=(10,5))
+sum_DTSM_filtered = np.sum(DTSM_filtered,axis=0)
+sum_tri_filtered = np.sum(tri_filtered,axis=0)
+sum_conv_filtered = np.sum(convolution_filtered,axis=0)
+DTSM_r2 = r2_score(mag_df-mag_df.mean(),sum_DTSM_filtered)
+tri_r2 = r2_score(mag_df-mag_df.mean(),sum_tri_filtered)
+conv_r2 = r2_score(mag_df-mag_df.mean(),sum_conv_filtered)
+plt.plot(mag_df-mag_df.mean(),label='original')
+plt.plot(mag_df.index,sum_conv_filtered,label=f'$\sum$ convolution filtered ($R^2$: {conv_r2:.2e})')
+# plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$:{DTSM_r2:.2e})')
+plt.plot(mag_df.index,sum_tri_filtered,label=f'$\sum$ triangle filterbanks ($R^2$:{tri_r2:.2e})')
+plt.legend()
+plt.show()
