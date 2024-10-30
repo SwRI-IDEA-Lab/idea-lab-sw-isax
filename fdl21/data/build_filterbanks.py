@@ -179,7 +179,8 @@ def visualize_filterbank_application(data_df,
                                      xlim = None,
                                      center_freq = None,
                                      DC = False,
-                                     HF = False):
+                                     HF = False,
+                                     save_results=False):
     """Plot comprehensive visualization of filterbank and its application to a set of test data.
     Plot includes the filterbank, raw test data, decomposition of filterbank preprocessed data and PAA, 
     and series recovered from summing up each filterbank PAA application.
@@ -197,7 +198,8 @@ def visualize_filterbank_application(data_df,
         data_col = data_df.columns[-1]
     x = data_df.index
     y = data_df[data_col]
-    total = np.zeros(data_df[data_col].shape)
+    all_filtered = np.zeros((fb_matrix.shape[0],data_df.shape[0]))
+    all_paa = np.zeros((fb_matrix.shape[0],data_df.shape[0]))
     total_paa = np.zeros(data_df[data_col].shape)
 
     data_span = x[-1]-x[0]
@@ -213,7 +215,7 @@ def visualize_filterbank_application(data_df,
         
         filtered_sig = np.array(filtered_sig[data_col])
         
-        total = total + filtered_sig
+        all_filtered[i] = filtered_sig
 
         # wordsize calculation
         if HF and i == fb_matrix.shape[0]-1:
@@ -234,6 +236,7 @@ def visualize_filterbank_application(data_df,
 
         paa_sfull = paa.inverse_transform(paa_sequence)[0].ravel()
 
+        all_paa[i] = paa_sfull
         total_paa = total_paa + paa_sfull 
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
@@ -279,6 +282,9 @@ def visualize_filterbank_application(data_df,
     ax.ticklabel_format(style='sci',scilimits=(0,0),axis='x')
     plt.show()
 
+    if save_results:
+        return all_filtered,all_paa
+
 class filterbank:
     def __init__(self,
                  data_len:int,
@@ -305,9 +311,9 @@ class filterbank:
         #     self.HF = fb_dict['HF']
 
     def build_triangle_fb(self, 
-                                  filter_freq_range = (0,5),
-                                  num_bands = 2,
-                                  center_freq = None):
+                          filter_freq_range = (0,5),
+                          num_bands = 2,
+                          center_freq = None):
         """Creates filterbank matrix of triangle filters.
 
         Parameters
@@ -333,7 +339,10 @@ class filterbank:
             edge_freq = freq_min + delta_freq*arange(0, num_bands+2)
             center_freq = edge_freq[1:-1]
         else:
+            if type(center_freq) == np.ndarray:
+                center_freq = center_freq.tolist()
             edge_freq = [freq_min] + center_freq + [freq_max]
+            num_bands = len(center_freq)
         
         lower_edges = edge_freq[:-2]
         upper_edges = edge_freq[2:]
@@ -377,6 +386,7 @@ class filterbank:
 
         self.fb_matrix = fb_matrix
         self.center_freq = center_freq
+        self.windows = windows
         
 
     def add_DC_HF_filters(self,
@@ -397,7 +407,40 @@ class filterbank:
                 self.lower_edges = np.append(self.lower_edges,self.edge_freq[-2])
         self.DC = DC
         self.HF = HF
-    
+
+    def add_mvgavg_DC_HF(self,
+                         DC = True,
+                         HF = True):
+        if DC:
+            SM = moving_avg_freq_response(f=self.freq_spectrum,
+                                            window=dt.timedelta(seconds=self.windows[-1]),
+                                            cadence=self.cadence)
+            self.fb_matrix = np.append(SM[None,:],self.fb_matrix,axis=0)
+            self.DC = True
+            cnt_fq = self.freq_hz_spec[np.argmax(SM)]
+            if self.center_freq[0] != cnt_fq:
+                self.center_freq = np.insert(self.center_freq,0,cnt_fq)
+            # if self.center_freq[-1] != cnt_fq:
+            #     self.center_freq = np.append(self.center_freq,cnt_fq)
+
+        if HF:
+            FR = moving_avg_freq_response(f=self.freq_spectrum,
+                                            window=dt.timedelta(seconds=self.windows[0]),
+                                            cadence=self.cadence)
+            DT = 1 - FR
+            self.fb_matrix = np.append(self.fb_matrix,DT[None,:],axis=0)
+            self.HF = True
+            for i,f in enumerate(FR[:-1]):
+                if f - FR[i+1] <0:
+                    cnt_fr_idx = i
+                    break
+            cnt_fq = self.freq_hz_spec[cnt_fr_idx]
+            if self.center_freq[-1] != cnt_fq:
+                self.center_freq = np.append(self.center_freq,cnt_fq)
+            # if self.center_freq[0] != cnt_fq:
+            #     self.center_freq = np.insert(self.center_freq,0,cnt_fq)
+
+
     def visualize_filterbank(self):
         """Show a plot of the built filterbank."""
         visualize_filterbank(fb_matrix=self.fb_matrix,
@@ -474,6 +517,8 @@ if __name__ == '__main__':
     fb = filterbank(data_len=len(mag_df),
                     cadence=dt.timedelta(seconds=60))
     fb.build_DTSM_fb(windows=[1000,3000,18000,108000])
+    fb.visualize_filterbank()
+    fb.add_mvgavg_DC_HF()
     fb.visualize_filterbank()
     visualize_filterbank_application(data_df=mag_df,
                                      fb_matrix=fb.fb_matrix,
