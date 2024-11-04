@@ -373,17 +373,17 @@ class filterbank:
                       windows = []):
         fb_matrix = zeros((len(windows)-1,len(self.freq_spectrum)))
         center_freq = []
-        for i,_ in enumerate(fb_matrix):
+        windows.sort(reverse=True)
+        for i,w in enumerate(windows[:-1]):
             DT = 1 - moving_avg_freq_response(f=self.freq_spectrum,
-                                              window=dt.timedelta(seconds=windows[i+1]),
+                                              window=dt.timedelta(seconds=w),
                                               cadence=self.cadence)
             SM = moving_avg_freq_response(f=self.freq_spectrum,
-                                          window=dt.timedelta(seconds=windows[i]),
+                                          window=dt.timedelta(seconds=windows[i+1]),
                                           cadence=self.cadence)
             FR = SM*DT
             fb_matrix[i] = FR
             center_freq.append(self.freq_hz_spec[np.argmax(FR)])
-
         self.fb_matrix = fb_matrix
         self.center_freq = center_freq
         self.windows = windows
@@ -413,7 +413,7 @@ class filterbank:
                          HF = True):
         if DC:
             SM = moving_avg_freq_response(f=self.freq_spectrum,
-                                            window=dt.timedelta(seconds=self.windows[-1]),
+                                            window=dt.timedelta(seconds=max(self.windows)),
                                             cadence=self.cadence)
             self.fb_matrix = np.append(SM[None,:],self.fb_matrix,axis=0)
             self.DC = True
@@ -425,7 +425,7 @@ class filterbank:
 
         if HF:
             FR = moving_avg_freq_response(f=self.freq_spectrum,
-                                            window=dt.timedelta(seconds=self.windows[0]),
+                                            window=dt.timedelta(seconds=min(self.windows)),
                                             cadence=self.cadence)
             DT = 1 - FR
             self.fb_matrix = np.append(self.fb_matrix,DT[None,:],axis=0)
@@ -447,6 +447,7 @@ class filterbank:
                              fftfreq=self.freq_hz_spec,)
                             #  xlim=(self.edge_freq[0],self.edge_freq[-1]))
 
+    # TODO: Update and fix filterbank saving with new updates (changed attributes, moving average FB, etc.)
     def save_filterbank(self):
         """Save the filterbank transformation matrix, fftfrequencies, and frequency endpoints 
         as a dictionary to a local pickle file"""
