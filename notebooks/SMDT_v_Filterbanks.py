@@ -86,38 +86,6 @@ mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=
 # 
 # \end{align*}
 
-
-# %%
-# # Moving average filterbanks
-# DTSM = fb.filterbank(data_len=len(mag_df),
-#                     cadence=dt.timedelta(seconds=60))
-# DTSM.build_DTSM_fb(windows=[1000,3000,18000,108000])
-# fb.visualize_filterbank(fb_matrix=DTSM.fb_matrix,
-#                         fftfreq=DTSM.freq_hz_spec,
-#                         xlim=(0,0.002))
-
-
-# %%
-# # triangle filterbanks
-# tri = fb.filterbank(data_len=len(mag_df),
-#                     cadence=dt.timedelta(seconds=60))
-# tri.build_triangle_fb((0.0,0.00104),
-#                       center_freq=np.sort(DTSM.center_freq))
-# fb.visualize_filterbank(fb_matrix=tri.fb_matrix,
-#                         fftfreq=tri.freq_hz_spec,
-#                         xlim=(0.0,0.0015))
-# %%
-# # plot all
-# for m_bank in DTSM.fb_matrix:
-#     plt.plot(DTSM.freq_hz_spec,m_bank,linewidth=2)
-# for t_bank in tri.fb_matrix:
-#     plt.plot(tri.freq_hz_spec,t_bank,linestyle='dashed')
-
-# plt.xlim(0.0,0.0015)
-# plt.grid()
-# plt.show()
-
-# Add DC and HF filters ====================================================
 # %%# Moving average filterbanks
 DTSM = fb.filterbank(data_len=len(mag_df),
                     cadence=dt.timedelta(seconds=60))
@@ -147,6 +115,7 @@ for t_bank in tri.fb_matrix:
     plt.plot(tri.freq_hz_spec,t_bank,linestyle='dashed')
 
 plt.xlim(0.0,0.0015)
+plt.xlabel('Frequency (Hz)')
 plt.grid()
 plt.show()
 
@@ -157,7 +126,7 @@ DTSM_filtered, DTSM_paa = fb.visualize_filterbank_application(data_df=mag_df,
                                                             data_col='BY_GSE',
                                                             cadence=dt.timedelta(minutes=1),
                                                             wordsize_factor = 3,
-                                                            xlim = (0,0.001),
+                                                            xlim = (0,DTSM.center_freq[-1]),
                                                             center_freq = DTSM.center_freq,
                                                             DC=DTSM.DC,
                                                             HF=DTSM.HF,
@@ -170,25 +139,15 @@ tri_filtered, tri_paa = fb.visualize_filterbank_application(data_df=mag_df,
                                                             data_col='BY_GSE',
                                                             cadence=dt.timedelta(minutes=1),
                                                             wordsize_factor = 3,
-                                                            xlim = (0,0.001),
+                                                            xlim = (0,tri.center_freq[-1]),
                                                             center_freq = tri.center_freq,
                                                             DC=tri.DC,
                                                             HF=tri.HF,
                                                             save_results=True)
 # %%
-plt.figure(figsize=(10,5))
-sum_DTSM_filtered = np.sum(DTSM_filtered,axis=0)
-sum_tri_filtered = np.sum(tri_filtered,axis=0)
-DTSM_r2 = r2_score(mag_df-mag_df.mean(),sum_DTSM_filtered)
-tri_r2 = r2_score(mag_df-mag_df.mean(),sum_tri_filtered)
-plt.plot(mag_df-mag_df.mean(),label='original')
-plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$:{DTSM_r2:.2e})')
-plt.plot(mag_df.index,sum_tri_filtered,'--',label=f'$\sum$ triangle filterbanks ($R^2$:{tri_r2:.2e})')
-plt.legend()
-plt.show()
-
-# %%
+# "filterbank" of Smoothing & detrending via convolution
 convolution_filtered = np.zeros(DTSM_filtered.shape)
+DTSM.windows.sort(reverse=True)
 for i,w in enumerate(DTSM.windows[:-1]):
     filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
                                             cols=cols,
@@ -199,26 +158,51 @@ for i,w in enumerate(DTSM.windows[:-1]):
 DC_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
                                            cols=cols,
                                            detrend_window=dt.timedelta(seconds=0),
-                                           smooth_window=dt.timedelta(seconds=DTSM.windows[-1]))
+                                           smooth_window=dt.timedelta(seconds=max(DTSM.windows)))
 convolution_filtered[0] = np.array(DC_filtered).ravel()
 # HF
 HF_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
                                            cols=cols,
-                                           detrend_window=dt.timedelta(seconds=DTSM.windows[0]),
+                                           detrend_window=dt.timedelta(seconds=min(DTSM.windows)),
                                            smooth_window=dt.timedelta(seconds=0))
 convolution_filtered[-1] = np.array(HF_filtered).ravel()
 
 # %%
-plt.figure(figsize=(10,5))
 sum_DTSM_filtered = np.sum(DTSM_filtered,axis=0)
 sum_tri_filtered = np.sum(tri_filtered,axis=0)
 sum_conv_filtered = np.sum(convolution_filtered,axis=0)
-DTSM_r2 = r2_score(mag_df-mag_df.mean(),sum_DTSM_filtered)
-tri_r2 = r2_score(mag_df-mag_df.mean(),sum_tri_filtered)
-conv_r2 = r2_score(mag_df-mag_df.mean(),sum_conv_filtered)
-plt.plot(mag_df-mag_df.mean(),label='original')
-plt.plot(mag_df.index,sum_conv_filtered,label=f'$\sum$ convolution filtered ($R^2$: {conv_r2:.2e})')
-# plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$:{DTSM_r2:.2e})')
-plt.plot(mag_df.index,sum_tri_filtered,label=f'$\sum$ triangle filterbanks ($R^2$:{tri_r2:.2e})')
+real = real = np.array(mag_df-mag_df.mean()).ravel()
+
+DTSM_r2 = r2_score(real,sum_DTSM_filtered)
+tri_r2 = r2_score(real,sum_tri_filtered)
+conv_r2 = r2_score(real,sum_conv_filtered)
+ # %%
+ # Plot Original vs. DTSM vs. Triangles 
+plt.plot(mag_df.index,real,label='original')
+plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$: {DTSM_r2:.2f})')
+plt.plot(mag_df.index,sum_tri_filtered,'--',label=f'$\sum$ triangle filterbanks ($R^2$: {tri_r2:.2f})')
 plt.legend()
 plt.show()
+
+# %%
+# Plot Original vs. Convolution vs. Triangles
+plt.figure(figsize=(10,5))
+plt.plot(mag_df.index,real,label='original')
+plt.plot(mag_df.index,sum_conv_filtered,linestyle='dashed',label=f'$\sum$ convolution filtered ($R^2$: {conv_r2:.2f})')
+# plt.plot(mag_df.index,sum_DTSM_filtered,label=f'$\sum$ Moving Averages($R^2$:{DTSM_r2:.2e})')
+plt.plot(mag_df.index,sum_tri_filtered,linestyle='dashdot',label=f'$\sum$ triangle filterbanks ($R^2$: {tri_r2:.2f})')
+plt.legend()
+plt.show()
+
+# %%
+# residuals
+selection = {'DTSM':sum_DTSM_filtered,
+            'Triangles':sum_tri_filtered,
+            'Convolution':sum_conv_filtered}
+colors = ['b','g','m']
+
+for i,result in enumerate(['DTSM','Triangles','Convolution']):
+    plt.stem(mag_df.index,real-selection[result],markerfmt=
+    f'{colors[i]}.',label=f'{result}')
+    plt.legend()
+    plt.show()
