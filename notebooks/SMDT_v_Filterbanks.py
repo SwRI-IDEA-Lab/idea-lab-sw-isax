@@ -46,7 +46,7 @@ mag_df.sort_index(inplace=True)
 mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=True)
 
 # %% [markdown]
-# # Theoretical Frequency Response
+# # Summary of theoretical formulas
 # 
 # **(Formula from [Ch. 15 of *Digital Signal Processing Textbook*](https://www.dspguide.com/CH15.PDF)**)
 # 
@@ -86,7 +86,11 @@ mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=
 # 
 # \end{align*}
 
-# %%# Moving average filterbanks
+# %% [markdown]
+# # Create Filterbanks
+
+# %%
+# Moving average filterbanks
 DTSM = fb.filterbank(data_len=len(mag_df),
                     cadence=dt.timedelta(seconds=60))
 DTSM.build_DTSM_fb(windows=[2000,6000,18000,54000])
@@ -117,6 +121,23 @@ for t_bank in tri.fb_matrix:
 plt.xlim(0.0,0.0015)
 plt.xlabel('Frequency (Hz)')
 plt.grid()
+plt.title('Both filterbank types in single plot')
+plt.show()
+
+# %%
+# Sum of filterbank amplitudes
+plt.plot(DTSM.freq_hz_spec,np.sum(abs(DTSM.fb_matrix),axis=0),label='$\sum$ DTSM filters')
+plt.plot(tri.freq_hz_spec,np.sum(tri.fb_matrix,axis=0),label='$\sum$ triangles filters')
+plt.xlabel('Frequency (hz)')
+plt.title('Sum of filter amplitudes across all frequencies')
+plt.legend()
+plt.show()
+
+# %%
+# Plot frequency space totals (stem plot)
+plt.stem(DTSM.freq_hz_spec,np.sum(abs(DTSM.fb_matrix),axis=0)-1,markerfmt='.')
+plt.xlabel('Frequency (hz)')
+plt.title('Sum of amplitudes (cont.): difference from 1')
 plt.show()
 
 # %%
@@ -196,13 +217,30 @@ plt.show()
 
 # %%
 # residuals
-selection = {'DTSM':sum_DTSM_filtered,
-            'Triangles':sum_tri_filtered,
-            'Convolution':sum_conv_filtered}
-colors = ['b','g','m']
+DTSM_residual = real-sum_DTSM_filtered
+tri_residual = real-sum_tri_filtered
+conv_residual = real - sum_conv_filtered
 
-for i,result in enumerate(['DTSM','Triangles','Convolution']):
-    plt.stem(mag_df.index,real-selection[result],markerfmt=
-    f'{colors[i]}.',label=f'{result}')
+residuals = {'DTSM':DTSM_residual,
+            'Triangles':tri_residual,
+            'Convolution':conv_residual}
+colors = ['b','m','g']
+lcolors = ['y','c','']
+
+
+# %%
+# Plot residuals: all in single plot
+for i,selection in enumerate(['DTSM','Convolution','Triangles']):
+    plt.stem(mag_df.index,residuals[selection],markerfmt=
+    f'{colors[i]}.',linefmt=f'{lcolors[i]}-',label=f'{selection} (total: {sum(abs(residuals[selection])):.2e})')
+    plt.legend()
+plt.show()
+# %%
+# Plot residuals: individually
+for i,selection in enumerate(['DTSM','Convolution','Triangles']):
+    plt.stem(mag_df.index,residuals[selection],markerfmt=
+    f'{colors[i]}.',linefmt=f'{lcolors[i]}',label=f'{selection}')
     plt.legend()
     plt.show()
+
+# %%
