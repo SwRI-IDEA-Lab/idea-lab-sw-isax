@@ -99,6 +99,8 @@ def preprocess_fft_filter(mag_df,
     assert frequency_weights.size != 0, 'Frequency weights is empty, please provide valid array of frequency weights'
     assert frequency_spectrum.size != 0, 'Frequency spectrum is empty, please provide valid array of frequency spectrum associated with the weights'
 
+
+    # TODO: Understand shape and axes argument of irfftn (to make it work as expected)
     # filteredYF = np.transpose(sig_fft_df.T*frequency_weights)
     # filtered_signal = np.real(fft.irfftn(filteredYF,mag_df.shape,axes=(0,1)))
 
