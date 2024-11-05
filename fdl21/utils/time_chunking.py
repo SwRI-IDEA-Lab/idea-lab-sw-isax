@@ -99,8 +99,14 @@ def preprocess_fft_filter(mag_df,
     assert frequency_weights.size != 0, 'Frequency weights is empty, please provide valid array of frequency weights'
     assert frequency_spectrum.size != 0, 'Frequency spectrum is empty, please provide valid array of frequency spectrum associated with the weights'
 
-    filteredYF = np.transpose(sig_fft_df.T*frequency_weights)
-    filtered_signal = np.real(fft.irfftn(filteredYF,mag_df.shape,axes=(0,1)))
+    # filteredYF = np.transpose(sig_fft_df.T*frequency_weights)
+    # filtered_signal = np.real(fft.irfftn(filteredYF,mag_df.shape,axes=(0,1)))
+
+    filtered_signal = np.zeros(mag_df.shape)
+    for i,sig in enumerate(sig_fft_df.T):
+        filtered = sig*frequency_weights
+        f_sig = np.real(fft.irfft(filtered,len(mag_df)))
+        filtered_signal.T[i] = f_sig
 
     preprocessed_mag_df = pd.DataFrame(filtered_signal,columns=cols,index=df_index)
 
