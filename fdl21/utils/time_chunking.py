@@ -91,23 +91,18 @@ def preprocess_fft_filter(mag_df,
     mag_df.sort_index(inplace=True)
     mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=True)
     df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
+    
     # FFT
-    sig_fft_df = fft.rfftn(mag_df,axes=0)
-
+    sig_fft_df = fft.rfftn(mag_df,axes=0) # the same as doing fft for each column
 
     # apply filter 
     assert frequency_weights.size != 0, 'Frequency weights is empty, please provide valid array of frequency weights'
     assert frequency_spectrum.size != 0, 'Frequency spectrum is empty, please provide valid array of frequency spectrum associated with the weights'
 
-
-    # TODO: Understand shape and axes argument of irfftn (to make it work as expected)
-    # filteredYF = np.transpose(sig_fft_df.T*frequency_weights)
-    # filtered_signal = np.real(fft.irfftn(filteredYF,mag_df.shape,axes=(0,1)))
-
     filtered_signal = np.zeros(mag_df.shape)
     for i,sig in enumerate(sig_fft_df.T):
         filtered = sig*frequency_weights
-        f_sig = np.real(fft.irfft(filtered,len(mag_df)))
+        f_sig = np.real(fft.irfft(filtered,mag_df.shape[0]))
         filtered_signal.T[i] = f_sig
 
     preprocessed_mag_df = pd.DataFrame(filtered_signal,columns=cols,index=df_index)
