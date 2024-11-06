@@ -92,7 +92,7 @@ def preprocess_fft_filter(mag_df,
     mag_df.interpolate(method='index', kind='linear',limit_direction='both',inplace=True)
     df_index=pd.date_range(start=mag_df.index[0], end=mag_df.index[-1], freq=cadence)
     # FFT
-    sig_fft_df = fft.rfftn(mag_df - mag_df.mean(),axes=0)
+    sig_fft_df = fft.rfftn(mag_df,axes=0)
 
 
     # apply filter 

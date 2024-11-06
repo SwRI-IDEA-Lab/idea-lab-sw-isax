@@ -187,19 +187,19 @@ tri_filtered, tri_paa = fb.visualize_filterbank_application(data_df=mag_df,
 convolution_filtered = np.zeros(DTSM_filtered.shape)
 DTSM.windows.sort(reverse=True)
 for i,w in enumerate(DTSM.windows[:-1]):
-    filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+    filtered = tc.preprocess_smooth_detrend(mag_df=mag_df,
                                             cols=cols,
                                             detrend_window=dt.timedelta(seconds=w),
                                             smooth_window=dt.timedelta(seconds=DTSM.windows[i+1]))
     convolution_filtered[i+1] = np.array(filtered[cols]).ravel()
 # DC
-DC_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+DC_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df,
                                            cols=cols,
                                            detrend_window=dt.timedelta(seconds=0),
                                            smooth_window=dt.timedelta(seconds=max(DTSM.windows)))
 convolution_filtered[0] = np.array(DC_filtered).ravel()
 # HF
-HF_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df-mag_df.mean(),
+HF_filtered = tc.preprocess_smooth_detrend(mag_df=mag_df,
                                            cols=cols,
                                            detrend_window=dt.timedelta(seconds=min(DTSM.windows)),
                                            smooth_window=dt.timedelta(seconds=0))
@@ -221,7 +221,7 @@ sum_conv_filtered = np.sum(convolution_filtered,axis=0)
 # %%
 # calculate r-squared scores
 # TODO: these scores may not be that useful, so can probably get rid of them
-real = real = np.array(mag_df-mag_df.mean()).ravel()
+real = np.array(mag_df).ravel()
 DTSM_r2 = r2_score(real,sum_DTSM_filtered)
 tri_r2 = r2_score(real,sum_tri_filtered)
 conv_r2 = r2_score(real,sum_conv_filtered)
