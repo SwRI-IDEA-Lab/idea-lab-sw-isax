@@ -232,9 +232,10 @@ def visualize_filterbank_application(data_df,
         
         # PAA application
         paa = PiecewiseAggregateApproximation(word_size)
-        paa_sequence = paa.fit_transform(filtered_sig[None,:])
+        paa_sequence = paa.fit_transform(filtered_sig.reshape(1,-1))
 
-        paa_sfull = paa.inverse_transform(paa_sequence)[0].ravel()
+        paa_sfull = paa.inverse_transform(paa_sequence)
+        paa_sfull = paa_sfull.reshape(-1)
 
         all_paa[i] = paa_sfull
         total_paa = total_paa + paa_sfull 
@@ -263,7 +264,7 @@ def visualize_filterbank_application(data_df,
 
 
     ax0 = fig.add_subplot(os_gs)   
-    ax0.plot(x, y-np.mean(y))
+    ax0.plot(x, y)
     ax0.set_title('Original series')
     # ax0.plot(x[0:-1:20], total_paa[0:-1:20], c='r')
     ax0.set_xticks([])
@@ -480,7 +481,7 @@ if __name__ == '__main__':
     test_cdf_file_path =_SRC_DIR+_OMNI_MAG_DATA_DIR+ year +'/omni_hro_1min_'+ year+month+'01_v01.cdf'
 
     mag_df = get_test_data(fname_full_path=test_cdf_file_path)
-    
+    mag_df = mag_df-mag_df.mean()
     # TODO: Set up json excutable way to test (using args, etc.)
     #=====================================
     # fb = filterbank()
@@ -490,13 +491,13 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    # fb = filterbank(data_len=len(mag_df),
-    #                 cadence=dt.timedelta(seconds=60))
-    # fb.build_triangle_fb(num_bands=4,
-    #                     filter_freq_range=(0.0,0.001),
-    #                     )
-    # fb.add_DC_HF_filters()
-    # fb.visualize_filterbank()
+    fb = filterbank(data_len=len(mag_df),
+                    cadence=dt.timedelta(seconds=60))
+    fb.build_triangle_fb(num_bands=4,
+                        filter_freq_range=(0.0,0.001),
+                        )
+    fb.add_DC_HF_filters()
+    fb.visualize_filterbank()
     #=====================================
 
     #=====================================
@@ -515,31 +516,31 @@ if __name__ == '__main__':
     #=====================================
 
     #=====================================
-    fb = filterbank(data_len=len(mag_df),
-                    cadence=dt.timedelta(seconds=60))
-    fb.build_DTSM_fb(windows=[1000,3000,18000,108000])
-    fb.visualize_filterbank()
-    fb.add_mvgavg_DC_HF()
-    fb.visualize_filterbank()
-    visualize_filterbank_application(data_df=mag_df,
-                                     fb_matrix=fb.fb_matrix,
-                                     fftfreq=fb.freq_hz_spec,
-                                     data_col='BY_GSE',
-                                     cadence=dt.timedelta(minutes=1),
-                                     wordsize_factor = 3,
-                                     xlim = (0,0.001),
-                                     center_freq = fb.center_freq,
-                                     DC=fb.DC,
-                                     HF=fb.HF)
-    #=====================================
-
+    # fb = filterbank(data_len=len(mag_df),
+    #                 cadence=dt.timedelta(seconds=60))
+    # fb.build_DTSM_fb(windows=[1000,3000,18000,108000])
+    # fb.visualize_filterbank()
+    # fb.add_mvgavg_DC_HF()
+    # fb.visualize_filterbank()
     # visualize_filterbank_application(data_df=mag_df,
     #                                  fb_matrix=fb.fb_matrix,
     #                                  fftfreq=fb.freq_hz_spec,
     #                                  data_col='BY_GSE',
     #                                  cadence=dt.timedelta(minutes=1),
     #                                  wordsize_factor = 3,
-    #                                 #  xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
+    #                                  xlim = (0,0.001),
     #                                  center_freq = fb.center_freq,
     #                                  DC=fb.DC,
     #                                  HF=fb.HF)
+    #=====================================
+
+    visualize_filterbank_application(data_df=mag_df,
+                                     fb_matrix=fb.fb_matrix,
+                                     fftfreq=fb.freq_hz_spec,
+                                     data_col='BY_GSE',
+                                     cadence=dt.timedelta(minutes=1),
+                                     wordsize_factor = 3,
+                                     xlim = (fb.edge_freq[0],fb.edge_freq[-1]),
+                                     center_freq = fb.center_freq,
+                                     DC=fb.DC,
+                                     HF=fb.HF)
