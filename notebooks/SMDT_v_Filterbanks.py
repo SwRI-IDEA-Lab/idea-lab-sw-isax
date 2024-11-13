@@ -118,7 +118,7 @@ tri.build_triangle_fb((0.0,np.sort(DTSM.center_freq)[-1]),
 tri.add_DC_HF_filters()
 fb.visualize_filterbank(fb_matrix=tri.fb_matrix,
                         fftfreq=tri.freq_hz_spec,
-                        xlim=(0.0,0.0015))
+                        xlim=(0.0,0.002))
 
 # %% plot all in single plot
 plt.figure(figsize=(10,5))
@@ -127,7 +127,7 @@ for m_bank in DTSM.fb_matrix:
 for t_bank in tri.fb_matrix:
     plt.plot(tri.freq_hz_spec,t_bank,linestyle='dashed')
 
-plt.xlim(0.0,0.0015)
+plt.xlim(0.0,tri.center_freq[-1])
 plt.xlabel('Frequency (Hz)')
 plt.grid()
 plt.title('Both filterbank types in single plot')
@@ -141,15 +141,12 @@ plt.title('Sum of filter amplitudes across all frequencies')
 plt.legend()
 plt.show()
 
-# %% Plot frequency space totals (stem plot)
-plt.stem(DTSM.freq_hz_spec,np.sum(abs(DTSM.fb_matrix),axis=0)-1,markerfmt='.')
-plt.xlabel('Frequency (hz)')
-plt.title('Sum of amplitudes (cont.): difference from 1')
-plt.show()
 
 # %% [markdown]
 # # Apply filterbanks to get a collection of deconstructed signals
 
+# %%
+# TODO: Remove PAA application parts for filterbank paper purposes
 # %%
 DTSM_filtered, DTSM_paa = fb.visualize_filterbank_application(data_df=mag_df,
                                                             fb_matrix=DTSM.fb_matrix,
@@ -300,6 +297,8 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.figure(figsize=(10,5))
     plt.plot(mag_df.index,residuals[selection],
              label=f'{selection}')
+    plt.hlines(0,min(mag_df.index),max(mag_df.index),
+               colors='black',linewidth=3)
     plt.legend()
     plt.xlabel('Index')
     plt.ylabel('Residual (nT)')
@@ -309,9 +308,13 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
 
 
 # %% relative residuals
-DTSM_rel_residual = np.abs(DTSM_residual)/np.abs(real)
-tri_rel_residual = np.abs(tri_residual)/np.abs(real)
-conv_rel_residual = np.abs(conv_residual)/np.abs(real)
+# DTSM_rel_residual = np.abs(DTSM_residual)/np.abs(real)
+# tri_rel_residual = np.abs(tri_residual)/np.abs(real)
+# conv_rel_residual = np.abs(conv_residual)/np.abs(real)
+
+DTSM_rel_residual = DTSM_residual/real
+tri_rel_residual = tri_residual/real
+conv_rel_residual = conv_residual/real
 
 rel_residuals = {'DTSM':DTSM_rel_residual,
             'Triangles':tri_rel_residual,
@@ -324,7 +327,7 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
              label=f'{selection}')
     plt.legend()
 plt.xlabel('Index')
-plt.ylabel('Residual (nT)')
+plt.ylabel('Relative Residual')
 plt.title('Residuals of reconstructed signals compared with original data signal')
 plt.show()
 # %% Plot relative residuals: individually
@@ -334,15 +337,15 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
              label=f'{selection}')
     plt.legend()
     plt.xlabel('Index')
-    plt.ylabel('Residual (nT)')
+    plt.ylabel('Relative Residual')
     plt.title('Residual of reconstructed signal compared with original data signal')
     plt.grid()
     plt.show()
 # %% Excess power in relation to number of filters
 winds = [500,1000,1500,2250]
-lens = []
-max_excess=[]
-for i in range(50):
+lens1 = []
+max_excess1=[]
+for i in range(25):
    
     DTSM = fb.filterbank(data_len=len(mag_df),
                         cadence=dt.timedelta(seconds=60))
@@ -350,9 +353,9 @@ for i in range(50):
     DTSM.build_DTSM_fb(windows=winds)
     DTSM.add_mvgavg_DC_HF()
 
-    lens.append(DTSM.fb_matrix.shape[0])
+    lens1.append(DTSM.fb_matrix.shape[0])
     amp_sum = np.sum(abs(DTSM.fb_matrix),axis=0) - 1
-    max_excess.append(max(amp_sum))
+    max_excess1.append(max(amp_sum))
 
     plt.plot(DTSM.freq_hz_spec,amp_sum)
     plt.xlabel('Frequency (hz)')
@@ -362,6 +365,43 @@ for i in range(50):
     winds.append(winds[-1]+(winds[-1]/2))
 plt.show()
 # %%
-plt.plot(lens,max_excess)
-plt.plot(lens,max_excess,'o')
+plt.figure()
+plt.plot(lens1,max_excess1)
+plt.plot(lens1,max_excess1,'o')
+plt.title('Max Excess vs. Number of Filters')
+plt.xlabel('Number of Filters')
+plt.ylabel('Excess Amplitude (above 1)')
+plt.show()
+# %%
+winds = [500,1000,1500,2250]
+lens2 = []
+max_excess2=[]
+for i in range(50):
+   
+    DTSM = fb.filterbank(data_len=len(mag_df),
+                        cadence=dt.timedelta(seconds=60))
+    # DTSM.build_DTSM_fb(windows=[500,1000,2000,5000,18000,21000,54000])
+    DTSM.build_DTSM_fb(windows=winds)
+    DTSM.add_mvgavg_DC_HF()
+
+    lens2.append(DTSM.fb_matrix.shape[0])
+    amp_sum = np.sum(abs(DTSM.fb_matrix),axis=0) - 1
+    max_excess2.append(max(amp_sum))
+
+    plt.plot(DTSM.freq_hz_spec,amp_sum)
+    plt.xlabel('Frequency (hz)')
+    plt.title('Sum of filter amplitudes across all frequencies')
+    plt.legend()
+
+    winds.append(winds[-1]*5)
+plt.show()
+# %%
+plt.figure()
+plt.plot(lens2,max_excess2)
+plt.plot(lens2,max_excess2,'o')
+plt.plot(lens1,max_excess1,'o')
+plt.title('Max Excess vs. Number of Filters')
+plt.xlabel('Number of Filters')
+plt.ylabel('Excess Amplitude (above 1)')
+plt.show()
 # %%
