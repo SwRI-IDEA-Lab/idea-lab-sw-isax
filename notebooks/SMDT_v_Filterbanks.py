@@ -40,7 +40,7 @@ mag_df = fb.get_test_data(fname_full_path=test_cdf_file_path)
 cols = ['BY_GSE']
 mag_df=mag_df[cols]
 mag_df
-mag_df = mag_df-mag_df.mean()  # Include this for fair comparison of DC and/or HF true or false (if both are true, original signal can be reconstructed regardless)
+# mag_df = mag_df-mag_df.mean()  # Include this for fair comparison of DC and/or HF true or false (if both are true, original signal can be reconstructed regardless)
 
 # %%
 # %% Prepare FT of test data for Fourier applications
@@ -258,31 +258,6 @@ residuals = {'DTSM':DTSM_residual,
 # %% [markdown]
 # ## Residuals of reconstructed signals compared with original
 # %% Plot residuals: all in single plot
-colors = ['b','m','g']
-lcolors = ['y','c','']
-
-plt.figure(figsize=(10,5))
-for i,selection in enumerate(['DTSM','Convolution','Triangles']):
-    plt.stem(mag_df.index,residuals[selection],
-             markerfmt=f'{colors[i]}.',linefmt=f'{lcolors[i]}-',
-             label=f'{selection} (total: {sum(abs(residuals[selection])):.2e}; Average: {abs(residuals[selection].mean()):.2e})')
-    plt.legend()
-plt.xlabel('Index')
-plt.ylabel('Residual (nT)')
-plt.title('Residuals of reconstructed signals compared with original data signal')
-plt.show()
-# %% Plot residuals: individually
-for i,selection in enumerate(['DTSM','Convolution','Triangles']):
-    plt.figure(figsize=(10,5))
-    plt.stem(mag_df.index,residuals[selection],markerfmt=
-    f'{colors[i]}.',linefmt=f'{lcolors[i]}',label=f'{selection}')
-    plt.legend()
-    plt.xlabel('Index')
-    plt.ylabel('Residual (nT)')
-    plt.title('Residual of reconstructed signal compared with original data signal')
-    plt.show()
-
-# %% Plot residuals: all in single plot
 plt.figure(figsize=(10,5))
 for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.plot(mag_df.index,residuals[selection],
@@ -290,21 +265,22 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.legend()
 plt.xlabel('Index')
 plt.ylabel('Residual (nT)')
-plt.title('Residuals of reconstructed signals compared with original data signal')
+plt.title('Absolute residual of reconstructed signals compared with original data signal')
+plt.grid()
 plt.show()
 # %% Plot residuals: individually
-for i,selection in enumerate(['DTSM','Convolution','Triangles']):
-    plt.figure(figsize=(10,5))
-    plt.plot(mag_df.index,residuals[selection],
-             label=f'{selection}')
-    plt.hlines(0,min(mag_df.index),max(mag_df.index),
-               colors='black',linewidth=3)
-    plt.legend()
-    plt.xlabel('Index')
-    plt.ylabel('Residual (nT)')
-    plt.title('Residual of reconstructed signal compared with original data signal')
-    plt.grid()
-    plt.show()
+# for i,selection in enumerate(['DTSM','Convolution','Triangles']):
+#     plt.figure(figsize=(10,5))
+#     plt.plot(mag_df.index,residuals[selection],
+#              label=f'{selection}')
+#     plt.hlines(0.0,min(mag_df.index),max(mag_df.index),
+#                colors='black',linewidth=3)
+#     plt.legend()
+#     plt.xlabel('Index')
+#     plt.ylabel('Residual (nT)')
+#     plt.title('Absolute Residual of reconstructed signal compared with original data signal')
+#     plt.grid()
+#     plt.show()
 
 
 # %% relative residuals
@@ -320,7 +296,7 @@ rel_residuals = {'DTSM':DTSM_rel_residual,
             'Triangles':tri_rel_residual,
             'Convolution':conv_rel_residual}
 
-# %%
+# %% Plot relative residuals
 plt.figure(figsize=(10,5))
 for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.plot(mag_df.index,rel_residuals[selection],
@@ -328,19 +304,22 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.legend()
 plt.xlabel('Index')
 plt.ylabel('Relative Residual')
-plt.title('Residuals of reconstructed signals compared with original data signal')
+plt.title('Relative Residual of reconstructed signals compared with original data signal')
+plt.grid()
 plt.show()
 # %% Plot relative residuals: individually
-for i,selection in enumerate(['DTSM','Convolution','Triangles']):
-    plt.figure(figsize=(10,5))
-    plt.plot(mag_df.index,rel_residuals[selection],
-             label=f'{selection}')
-    plt.legend()
-    plt.xlabel('Index')
-    plt.ylabel('Relative Residual')
-    plt.title('Residual of reconstructed signal compared with original data signal')
-    plt.grid()
-    plt.show()
+# for i,selection in enumerate(['DTSM','Convolution','Triangles']):
+#     plt.figure(figsize=(10,5))
+#     plt.plot(mag_df.index,rel_residuals[selection],
+#              label=f'{selection}')
+#     plt.hlines(0.0,min(mag_df.index),max(mag_df.index),
+#                colors='black',linewidth=3)
+#     plt.legend()
+#     plt.xlabel('Index')
+#     plt.ylabel('Relative Residual')
+#     plt.title('RELATIVE Residual of reconstructed signal compared with original data signal')
+#     plt.grid()
+#     plt.show()
 # %% Excess power in relation to number of filters
 winds = [500,1000,1500,2250]
 lens1 = []
