@@ -153,12 +153,13 @@ def add_DC_HF_filters(fb_matrix,
 
 def visualize_filterbank(fb_matrix,
                          fftfreq,
-                         xlim:tuple = None):
+                         xlim:tuple = None,
+                         ylabel = 'Weight'):
     """Simple plot of filterbank"""
     fig,ax = plt.subplots(figsize=(8,3))
     ax.plot(fftfreq,fb_matrix.T)
     ax.grid(True)
-    ax.set_ylabel('Weight')
+    ax.set_ylabel(ylabel=ylabel)
     ax.set_xlabel('Frequency  (Hz)')
     if xlim is None:
         xlim = (np.min(fftfreq),np.max(fftfreq))
@@ -180,6 +181,7 @@ def visualize_filterbank_application(data_df,
                                      center_freq = None,
                                      DC = False,
                                      HF = False,
+                                     show_plot=True,
                                      save_results=False):
     """Plot comprehensive visualization of filterbank and its application to a set of test data.
     Plot includes the filterbank, raw test data, decomposition of filterbank preprocessed data and PAA, 
@@ -242,7 +244,7 @@ def visualize_filterbank_application(data_df,
 
         ax0 = fig.add_subplot(gs[2*i:2*i+2,1])    
         ax0.plot(x, filtered_sig,label=f'center_freq = {center_freq[i]:.2e}')
-        ax0.plot(x, paa_sfull, c='r',label=f'word_size = {word_size}')
+        # ax0.plot(x, paa_sfull, c='r',label=f'word_size = {word_size}')
         ax0.set_xticks([])
         ax0.set_yticks([])
         ax0.legend(loc='upper right',bbox_to_anchor=(1.4, 1))
@@ -256,11 +258,11 @@ def visualize_filterbank_application(data_df,
     else:
         os_gs = gs[4:6,0]
         pr_gs = gs[7:9,0]
-    ax0 = fig.add_subplot(pr_gs)   
-    ax0.plot(x, total_paa, c='r')
-    ax0.set_title('Series recovered from filter bank PAA')
-    ax0.set_xticks([])
-    ax0.set_yticks([])
+    # ax0 = fig.add_subplot(pr_gs)   
+    # ax0.plot(x, total_paa, c='r')
+    # ax0.set_title('Series recovered from filter bank PAA')
+    # ax0.set_xticks([])
+    # ax0.set_yticks([])
 
 
     ax0 = fig.add_subplot(os_gs)   
@@ -275,13 +277,16 @@ def visualize_filterbank_application(data_df,
     ax = fig.add_subplot(gs[0:2,0])  
     ax.plot(fftfreq, fb_matrix.T)
     ax.grid(True)
-    ax.set_ylabel('Weight')
+    # ax.set_ylabel('Weight')
     ax.set_xlabel('Frequency (Hz)')
     ax.set_xlim(xlim)
     ax.set_title('Mel filter bank')
     ax.set_xticks(center_freq)
     ax.ticklabel_format(style='sci',scilimits=(0,0),axis='x')
-    plt.show()
+    if show_plot:
+        plt.show()
+    else:
+        plt.close()
 
     if save_results:
         return all_filtered,all_paa
@@ -294,6 +299,7 @@ class filterbank:
         self.data_len = data_len
         self.cadence = cadence
         self.freq_spectrum = np.linspace(0.0001,data_len/2,(data_len//2)+1)
+        self.freq_smprt = np.linspace(0.0001,0.5,(data_len//2)+1)
         self.freq_hz_spec = self.freq_spectrum/(data_len*cadence.total_seconds())
         
         # placeholders
@@ -376,10 +382,10 @@ class filterbank:
         center_freq = []
         windows.sort(reverse=True)
         for i,w in enumerate(windows[:-1]):
-            DT = 1 - moving_avg_freq_response(f=self.freq_spectrum,
+            DT = 1 - moving_avg_freq_response(f=self.freq_smprt,
                                               window=dt.timedelta(seconds=w),
                                               cadence=self.cadence)
-            SM = moving_avg_freq_response(f=self.freq_spectrum,
+            SM = moving_avg_freq_response(f=self.freq_smprt,
                                           window=dt.timedelta(seconds=windows[i+1]),
                                           cadence=self.cadence)
             FR = SM*DT
@@ -496,8 +502,16 @@ if __name__ == '__main__':
     fb.build_triangle_fb(num_bands=4,
                         filter_freq_range=(0.0,0.001),
                         )
+    visualize_filterbank(fb_matrix=fb.fb_matrix,
+                         fftfreq=fb.freq_hz_spec,
+                         xlim=(fb.edge_freq[0],fb.edge_freq[-1]),
+                         ylabel='Amplitude')
     fb.add_DC_HF_filters()
-    fb.visualize_filterbank()
+    # fb.visualize_filterbank()
+    visualize_filterbank(fb_matrix=fb.fb_matrix,
+                         fftfreq=fb.freq_hz_spec,
+                         xlim=(fb.edge_freq[0],fb.edge_freq[-1]),
+                         ylabel='Amplitude')
     #=====================================
 
     #=====================================
