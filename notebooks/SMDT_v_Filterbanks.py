@@ -265,7 +265,7 @@ for i,selection in enumerate(['DTSM','Convolution','Triangles']):
     plt.legend()
 plt.xlabel('Index')
 plt.ylabel('Residual (nT)')
-plt.title('Absolute residual of reconstructed signals compared with original data signal')
+plt.title('Direct residual of reconstructed signals compared with original data signal')
 plt.grid()
 plt.show()
 # %% Plot residuals: individually
@@ -350,11 +350,14 @@ plt.plot(lens1,max_excess1,'o')
 plt.title('Max Excess vs. Number of Filters')
 plt.xlabel('Number of Filters')
 plt.ylabel('Excess Amplitude (above 1)')
+plt.grid()
 plt.show()
 # %%
 winds = [500,1000,1500,2250]
 lens2 = []
 max_excess2=[]
+rel_res = []
+max_abs_rel_res =[]
 for i in range(50):
    
     DTSM = fb.filterbank(data_len=len(mag_df),
@@ -362,6 +365,23 @@ for i in range(50):
     # DTSM.build_DTSM_fb(windows=[500,1000,2000,5000,18000,21000,54000])
     DTSM.build_DTSM_fb(windows=winds)
     DTSM.add_mvgavg_DC_HF()
+
+    DTSM_filtered, DTSM_paa = fb.visualize_filterbank_application(data_df=mag_df,
+                                                            fb_matrix=DTSM.fb_matrix,
+                                                            fftfreq=DTSM.freq_hz_spec,
+                                                            data_col='BY_GSE',
+                                                            cadence=dt.timedelta(minutes=1),
+                                                            wordsize_factor = 3,
+                                                            xlim = (0,DTSM.center_freq[-1]),
+                                                            center_freq = DTSM.center_freq,
+                                                            DC=DTSM.DC,
+                                                            HF=DTSM.HF,
+                                                            show_plot=False,
+                                                            save_results=True)
+    sum_DTSM_filtered = np.sum(DTSM_filtered,axis=0)
+    res = np.abs((sum_DTSM_filtered-real)/real)
+    rel_res.append(res)
+    max_abs_rel_res.append(np.max(res))
 
     lens2.append(DTSM.fb_matrix.shape[0])
     amp_sum = np.sum(abs(DTSM.fb_matrix),axis=0) - 1
@@ -382,5 +402,19 @@ plt.plot(lens1,max_excess1,'o')
 plt.title('Max Excess vs. Number of Filters')
 plt.xlabel('Number of Filters')
 plt.ylabel('Excess Amplitude (above 1)')
+plt.grid()
 plt.show()
+# %%
+plt.figure()
+plt.plot(lens2,max_abs_rel_res)
+plt.xlabel('Number of Filters')
+plt.ylabel('Max |relative residual|')
+plt.title('Max |relative residual| vs. number of filters')
+plt.grid()
+# %%
+plt.figure()
+plt.plot(max_excess2,np.array(max_abs_rel_res))
+plt.xlabel('Max Excess Power')
+plt.ylabel('Max |relative residual|')
+plt.grid()
 # %%
